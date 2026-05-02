@@ -1,0 +1,29 @@
+{
+  "name": "autoai-desktop",
+  "version": "0.2.0",
+  "description": "AutoAI - Local autonomous agent management desktop app",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.autoai.desktop",
+    "productName": "AutoAI",
+    "files": [
+      "**/*",
+      "../autoai/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../autoai",
+        "to": "autoai",
+        "filter": ["**/*"]
+      }
+    ]
+  }
+}

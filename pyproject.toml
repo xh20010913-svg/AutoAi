@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autoai-longrun"
+version = "0.2.0"
+description = "A local desktop app for long-running autonomous agent management with Kanban board, role system, and real-time progress."
+requires-python = ">=3.11"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+  { name = "autoai" }
+]
+dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.20.0",
+    "sqlalchemy>=2.0.0",
+    "websockets>=11.0",
+]
+
+[project.scripts]
+autoai = "autoai.cli:main"
+
+[tool.setuptools]
+packages = ["autoai", "autoai.api"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+autoai = ["templates/*.md"]
