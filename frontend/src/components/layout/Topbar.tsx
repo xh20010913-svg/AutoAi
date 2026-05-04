@@ -1,8 +1,10 @@
 import { Moon, Sun, Monitor, Play, Zap } from "lucide-react"
 import { useTheme } from "@/context/theme-context"
+import { useTranslation } from "@/hooks/useLanguage"
 
 export function Topbar() {
   const { theme, setTheme, resolvedTheme } = useTheme()
+  const { t } = useTranslation()
 
   const cycleTheme = () => {
     const order: Array<"light" | "dark" | "system"> = ["light", "dark", "system"]
@@ -17,7 +19,7 @@ export function Topbar() {
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1.5">
           <Zap className="h-4 w-4 text-primary fill-primary" />
-          <span className="text-xs font-medium text-primary tracking-wider uppercase">Dashboard</span>
+          <span className="text-xs font-medium text-primary tracking-wider uppercase">{t("topbar.dashboard")}</span>
         </div>
         <div className="h-4 w-px bg-border" />
         <span className="text-[11px] text-muted-foreground font-mono">autai.local</span>
@@ -25,7 +27,7 @@ export function Topbar() {
       <div className="flex items-center gap-2">
         <button className="inline-flex items-center gap-1.5 bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity pixel-border-sm">
           <Play className="h-3 w-3" />
-          Run
+          {t("topbar.run")}
         </button>
         <button
           onClick={cycleTheme}

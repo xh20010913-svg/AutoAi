@@ -1,20 +1,12 @@
 import { NavLink } from "react-router-dom"
 import { LayoutGrid, Bot, Play, Box, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
-
-const navItems = [
-  { to: "/", icon: LayoutGrid, label: "Board" },
-  { to: "/agents", icon: Bot, label: "Agents" },
-  { to: "/runtime", icon: Play, label: "Runtime" },
-  { to: "/models", icon: Box, label: "Models" },
-  { to: "/settings", icon: Settings, label: "Settings" },
-]
+import { useTranslation } from "@/hooks/useLanguage"
 
 function PixelLogo() {
   return (
     <div className="flex items-center gap-2.5">
       <div className="relative h-7 w-7">
-        {/* Pixel grid logo — 4x4 blocks */}
         <div className="grid grid-cols-4 gap-[1px] h-full w-full">
           <div className="bg-sidebar-primary" />
           <div className="bg-sidebar-primary" />
@@ -35,18 +27,24 @@ function PixelLogo() {
         </div>
       </div>
       <div>
-        <span className="text-sm font-bold text-sidebar-primary tracking-widest uppercase">
-          AutoAI
-        </span>
-        <div className="text-[9px] text-sidebar-foreground/40 tracking-[0.2em] uppercase -mt-0.5">
-          v0.2
-        </div>
+        <span className="text-sm font-bold text-sidebar-primary tracking-widest uppercase">AutoAI</span>
+        <div className="text-[9px] text-sidebar-foreground/40 tracking-[0.2em] uppercase -mt-0.5">v0.2</div>
       </div>
     </div>
   )
 }
 
 export function Sidebar() {
+  const { t } = useTranslation()
+
+  const navItems = [
+    { to: "/", icon: LayoutGrid, label: t("nav.board") },
+    { to: "/agents", icon: Bot, label: t("nav.agents") },
+    { to: "/runtime", icon: Play, label: t("nav.runtime") },
+    { to: "/models", icon: Box, label: t("nav.models") },
+    { to: "/settings", icon: Settings, label: t("nav.settings") },
+  ]
+
   return (
     <aside className="flex h-full w-56 flex-col border-r-2 border-sidebar-border bg-sidebar-background">
       <div className="flex h-14 items-center px-4 border-b-2 border-sidebar-border">
@@ -54,7 +52,7 @@ export function Sidebar() {
       </div>
       <div className="px-3 pt-3 pb-1">
         <span className="text-[10px] font-medium text-sidebar-foreground/40 tracking-[0.15em] uppercase">
-          Navigation
+          {t("nav.navigation")}
         </span>
       </div>
       <nav className="flex flex-1 flex-col gap-0.5 px-2">
@@ -80,7 +78,7 @@ export function Sidebar() {
       <div className="border-t-2 border-sidebar-border p-3">
         <div className="flex items-center gap-2 text-[10px] text-sidebar-foreground/30 tracking-wider uppercase">
           <div className="h-1.5 w-1.5 bg-emerald-500" style={{ animation: "pixelBlink 2s step-end infinite" }} />
-          System Online
+          {t("nav.systemOnline")}
         </div>
       </div>
     </aside>

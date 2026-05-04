@@ -19,18 +19,12 @@ import {
 } from "@/components/ui/dialog"
 import { api, type Task, type TaskPriority } from "@/lib/api"
 import { Plus } from "lucide-react"
+import { useTranslation } from "@/hooks/useLanguage"
 
 interface CreateTaskDialogProps {
   projectId: string
   onCreated: (task: Task) => void
 }
-
-const PRIORITIES: { value: TaskPriority; label: string }[] = [
-  { value: "high", label: "High" },
-  { value: "medium", label: "Medium" },
-  { value: "low", label: "Low" },
-  { value: "none", label: "None" },
-]
 
 export function CreateTaskDialog({ projectId, onCreated }: CreateTaskDialogProps) {
   const [open, setOpen] = useState(false)
@@ -39,6 +33,14 @@ export function CreateTaskDialog({ projectId, onCreated }: CreateTaskDialogProps
   const [priority, setPriority] = useState<TaskPriority>("medium")
   const [assignee, setAssignee] = useState("")
   const [creating, setCreating] = useState(false)
+  const { t } = useTranslation()
+
+  const PRIORITIES: { value: TaskPriority; label: string }[] = [
+    { value: "high", label: t("createTask.priorityHigh") },
+    { value: "medium", label: t("createTask.priorityMedium") },
+    { value: "low", label: t("createTask.priorityLow") },
+    { value: "none", label: t("createTask.priorityNone") },
+  ]
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -69,69 +71,39 @@ export function CreateTaskDialog({ projectId, onCreated }: CreateTaskDialogProps
       <DialogTrigger asChild>
         <Button>
           <Plus className="h-3.5 w-3.5" />
-          New Task
+          {t("board.newTask")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create New Task</DialogTitle>
+          <DialogTitle>{t("createTask.title")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="create-title">Title</Label>
-            <Input
-              id="create-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Task title"
-              required
-              autoFocus
-            />
+            <Label htmlFor="create-title">{t("createTask.labelTitle")}</Label>
+            <Input id="create-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("createTask.placeholderTitle")} required autoFocus />
           </div>
-
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="create-description">Description</Label>
-            <Textarea
-              id="create-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description"
-              rows={3}
-            />
+            <Label htmlFor="create-description">{t("createTask.labelDescription")}</Label>
+            <Textarea id="create-description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("createTask.placeholderDescription")} rows={3} />
           </div>
-
           <div className="flex flex-col gap-1.5">
-            <Label>Priority</Label>
+            <Label>{t("createTask.labelPriority")}</Label>
             <Select value={priority} onValueChange={(v) => setPriority(v as TaskPriority)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {PRIORITIES.map((p) => (
-                  <SelectItem key={p.value} value={p.value}>
-                    {p.label}
-                  </SelectItem>
-                ))}
+                {PRIORITIES.map((p) => (<SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>))}
               </SelectContent>
             </Select>
           </div>
-
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="create-assignee">Assignee</Label>
-            <Input
-              id="create-assignee"
-              value={assignee}
-              onChange={(e) => setAssignee(e.target.value)}
-              placeholder="Agent ID (optional)"
-            />
+            <Label htmlFor="create-assignee">{t("createTask.labelAssignee")}</Label>
+            <Input id="create-assignee" value={assignee} onChange={(e) => setAssignee(e.target.value)} placeholder={t("createTask.placeholderAssignee")} />
           </div>
-
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>{t("createTask.cancel")}</Button>
             <Button type="submit" disabled={creating || !title.trim()}>
-              {creating ? "Creating..." : "Create"}
+              {creating ? t("createTask.creating") : t("createTask.create")}
             </Button>
           </div>
         </form>
