@@ -56,7 +56,23 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
+export interface Agent {
+  id: string
+  name: string
+  role: string
+  status: "idle" | "working" | "blocked"
+  model: string
+  completed_tasks: number
+  current_task_id: string | null
+  active_tasks: number
+}
+
 export const api = {
+  agents: {
+    listAll: () => request<Agent[]>("/agents/status/all"),
+    getStatus: (agentId: string) => request<Agent>(`/agents/${agentId}/status`),
+  },
+
   projects: {
     list: () => request<{ projects: Project[]; total: number }>("/projects"),
   },

@@ -19,8 +19,14 @@ class Project(Base):
 class Agent(Base):
     __tablename__ = "agents"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str]
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid4()))
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    role: Mapped[str] = mapped_column(String, default="")
+    status: Mapped[str] = mapped_column(String, default="idle")  # idle / working / blocked
+    model: Mapped[str] = mapped_column(String, default="")
+    completed_tasks: Mapped[int] = mapped_column(Integer, default=0)
+    current_task_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    active_tasks: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class Task(Base):
