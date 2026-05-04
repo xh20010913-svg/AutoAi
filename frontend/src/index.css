@@ -172,6 +172,12 @@
   50% { background-color: #60a5fa; }
 }
 
+@keyframes slideInFromBottom {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+}
+
 @layer base {
   * {
     @apply border-border;

@@ -17,11 +17,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { api, type Task, type TaskPriority } from "@/lib/api"
+import { taskApi, type Task, type TaskPriority } from "@/lib/api"
+import { showToast } from "@/lib/toast"
 import { Plus } from "lucide-react"
 
 interface CreateTaskDialogProps {
-  projectId: string
   onCreated: (task: Task) => void
 }
 
@@ -32,7 +32,7 @@ const PRIORITIES: { value: TaskPriority; label: string }[] = [
   { value: "none", label: "None" },
 ]
 
-export function CreateTaskDialog({ projectId, onCreated }: CreateTaskDialogProps) {
+export function CreateTaskDialog({ onCreated }: CreateTaskDialogProps) {
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -45,11 +45,11 @@ export function CreateTaskDialog({ projectId, onCreated }: CreateTaskDialogProps
     if (!title.trim()) return
     setCreating(true)
     try {
-      const task = await api.tasks.create(projectId, {
+      const task = await taskApi.create({
         title: title.trim(),
         description: description.trim() || undefined,
         priority,
-        assignee_id: assignee.trim() || undefined,
+        assignee: assignee.trim() || undefined,
       })
       onCreated(task)
       setTitle("")
@@ -58,7 +58,8 @@ export function CreateTaskDialog({ projectId, onCreated }: CreateTaskDialogProps
       setAssignee("")
       setOpen(false)
     } catch (err) {
-      console.error("Failed to create task:", err)
+      const msg = err instanceof Error ? err.message : "Failed to create task"
+      showToast(msg, "error")
     } finally {
       setCreating(false)
     }
