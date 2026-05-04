@@ -19,7 +19,9 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { GripVertical } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { api, type Task, type TaskStatus } from "@/lib/api"
+import { taskApi, type Task, type TaskStatus } from "@/lib/api"
+import { showToast } from "@/lib/toast"
+import { connectWebSocket } from "@/lib/ws"
 import { CreateTaskDialog } from "@/components/CreateTaskDialog"
 import { TaskDetailPanel } from "@/components/TaskDetailPanel"
 
@@ -101,9 +103,9 @@ function SortableTaskCard({
         >
           {task.priority}
         </span>
-        {task.assignee_id && (
+        {task.assignee && (
           <span className="text-xs text-muted-foreground truncate max-w-[100px]">
-            {task.assignee_id}
+            {task.assignee}
           </span>
         )}
       </div>
@@ -176,7 +178,6 @@ function TaskCardOverlay({ task }: { task: Task }) {
 }
 
 export function BoardPage() {
-  const [projectId, setProjectId] = useState<string | null>(null)
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -187,41 +188,33 @@ export function BoardPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   )
 
-  const loadProject = useCallback(async () => {
+  const loadTasks = useCallback(async () => {
     try {
-      const { projects } = await api.projects.list()
-      if (projects.length === 0) {
-        setError("No projects found. Create a project first.")
-        return null
-      }
-      return projects[0].id
-    } catch (err) {
-      setError(`Failed to load projects: ${err instanceof Error ? err.message : "Unknown error"}`)
-      return null
-    }
-  }, [])
-
-  const loadTasks = useCallback(async (pid: string) => {
-    try {
-      const { tasks: data } = await api.tasks.list(pid)
+      const data = await taskApi.list()
       setTasks(data)
+      setError(null)
     } catch (err) {
-      setError(`Failed to load tasks: ${err instanceof Error ? err.message : "Unknown error"}`)
+      const msg = err instanceof Error ? err.message : "Unknown error"
+      setError(`Failed to load tasks: ${msg}`)
+      showToast(`Failed to load tasks: ${msg}`, "error")
     }
   }, [])
 
+  // Initial load
   useEffect(() => {
-    async function init() {
-      setLoading(true)
-      const pid = await loadProject()
-      if (pid) {
-        setProjectId(pid)
-        await loadTasks(pid)
+    setLoading(true)
+    loadTasks().finally(() => setLoading(false))
+  }, [loadTasks])
+
+  // WebSocket: refresh board on task change notifications
+  useEffect(() => {
+    const unsubscribe = connectWebSocket((data) => {
+      if (data.type === "task_updated" || data.type === "task_created" || data.type === "task_deleted") {
+        loadTasks()
       }
-      setLoading(false)
-    }
-    init()
-  }, [loadProject, loadTasks])
+    })
+    return unsubscribe
+  }, [loadTasks])
 
   const getColumnTasks = (status: TaskStatus) =>
     tasks
@@ -239,7 +232,6 @@ export function BoardPage() {
     const activeId = active.id as string
     const overId = over.id as string
 
-    // Check if we're hovering over a column directly
     const overIsColumn = COLUMNS.some((c) => c.id === overId)
     const activeTask = tasks.find((t) => t.id === activeId)
     if (!activeTask) return
@@ -248,7 +240,6 @@ export function BoardPage() {
     if (overIsColumn) {
       targetStatus = overId as TaskStatus
     } else {
-      // Hovering over another task — check its column
       const overTask = tasks.find((t) => t.id === overId)
       if (overTask && overTask.status !== activeTask.status) {
         targetStatus = overTask.status
@@ -256,7 +247,6 @@ export function BoardPage() {
     }
 
     if (targetStatus && targetStatus !== activeTask.status) {
-      // Optimistic update: move task to new column
       setTasks((prev) =>
         prev.map((t) =>
           t.id === activeId ? { ...t, status: targetStatus! } : t,
@@ -269,7 +259,7 @@ export function BoardPage() {
     const { active, over } = event
     setActiveId(null)
 
-    if (!over || !projectId) return
+    if (!over) return
 
     const activeId = active.id as string
     const overId = over.id as string
@@ -277,7 +267,6 @@ export function BoardPage() {
     const activeTask = tasks.find((t) => t.id === activeId)
     if (!activeTask) return
 
-    // Determine target column
     const overIsColumn = COLUMNS.some((c) => c.id === overId)
     let targetStatus: TaskStatus
     let targetPosition: number | undefined
@@ -291,7 +280,6 @@ export function BoardPage() {
       targetPosition = overTask.position
     }
 
-    // Check if anything changed
     const statusChanged = activeTask.status !== targetStatus
     const positionChanged =
       targetPosition !== undefined && activeTask.position !== targetPosition
@@ -299,26 +287,26 @@ export function BoardPage() {
     if (!statusChanged && !positionChanged) return
 
     try {
-      const updated = await api.tasks.update(projectId, activeId, {
+      const updated = await taskApi.update(activeId, {
         status: statusChanged ? targetStatus : undefined,
         position: targetPosition,
       })
       setTasks((prev) =>
         prev.map((t) => (t.id === activeId ? updated : t)),
       )
-      // Update selected task if it's the one we moved
       if (selectedTask?.id === activeId) {
         setSelectedTask(updated)
       }
     } catch (err) {
       console.error("Failed to update task position:", err)
-      // Reload to revert optimistic update
-      await loadTasks(projectId)
+      showToast("Failed to update task", "error")
+      await loadTasks()
     }
   }
 
   function handleTaskCreated(task: Task) {
     setTasks((prev) => [...prev, task])
+    showToast("Task created", "success")
   }
 
   function handleTaskUpdated(task: Task) {
@@ -329,6 +317,7 @@ export function BoardPage() {
   function handleTaskDeleted(taskId: string) {
     setTasks((prev) => prev.filter((t) => t.id !== taskId))
     setSelectedTask(null)
+    showToast("Task deleted", "success")
   }
 
   if (loading) {
@@ -353,9 +342,7 @@ export function BoardPage() {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-lg font-semibold">Board</h1>
-        {projectId && (
-          <CreateTaskDialog projectId={projectId} onCreated={handleTaskCreated} />
-        )}
+        <CreateTaskDialog onCreated={handleTaskCreated} />
       </div>
       <div className="flex-1 overflow-x-auto">
         <DndContext
@@ -381,10 +368,9 @@ export function BoardPage() {
         </DndContext>
       </div>
 
-      {selectedTask && projectId && (
+      {selectedTask && (
         <TaskDetailPanel
           task={selectedTask}
-          projectId={projectId}
           onClose={() => setSelectedTask(null)}
           onUpdated={handleTaskUpdated}
           onDeleted={handleTaskDeleted}

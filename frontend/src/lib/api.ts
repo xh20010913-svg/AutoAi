@@ -1,4 +1,39 @@
+import axios from "axios"
+
 const API_BASE = "http://localhost:18765/api/v1"
+
+// ── Axios instance ──────────────────────────────────────────────
+
+export const apiClient = axios.create({
+  baseURL: API_BASE,
+  headers: { "Content-Type": "application/json" },
+})
+
+// Attach JWT token to every request
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token")
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+// Handle 401 → redirect to login
+apiClient.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem("token")
+      localStorage.removeItem("user")
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login"
+      }
+    }
+    return Promise.reject(error)
+  },
+)
+
+// ── Types ───────────────────────────────────────────────────────
 
 export type TaskStatus = "todo" | "in_progress" | "in_review" | "done" | "blocked"
 export type TaskPriority = "high" | "medium" | "low" | "none"
@@ -9,8 +44,8 @@ export interface Task {
   description: string
   status: TaskStatus
   priority: TaskPriority
-  assignee_id: string | null
-  parent_id: string | null
+  assignee: string
+  project_id: string | null
   position: number
   created_at: string
   updated_at: string
@@ -19,8 +54,10 @@ export interface Task {
 export interface TaskCreate {
   title: string
   description?: string
+  status?: TaskStatus
   priority?: TaskPriority
-  assignee_id?: string
+  assignee?: string
+  position?: number
 }
 
 export interface TaskUpdate {
@@ -28,60 +65,71 @@ export interface TaskUpdate {
   description?: string
   status?: TaskStatus
   priority?: TaskPriority
-  assignee_id?: string
+  assignee?: string
   position?: number
 }
 
-export interface Project {
-  id: string
-  name: string
-  description: string
-  created_at: string
-  updated_at: string
+// ── Auth API ────────────────────────────────────────────────────
+
+export interface LoginRequest {
+  username: string
+  password: string
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
-  })
-  if (!res.ok) {
-    const body = await res.text()
-    throw new Error(`API ${res.status}: ${body}`)
-  }
-  if (res.status === 204) return undefined as T
-  return res.json() as Promise<T>
+export interface RegisterRequest {
+  username: string
+  email: string
+  password: string
 }
 
-export const api = {
-  projects: {
-    list: () => request<{ projects: Project[]; total: number }>("/projects"),
+export interface AuthResponse {
+  access_token: string
+  token_type: string
+  user?: { id: string; username: string; email: string }
+}
+
+export const authApi = {
+  login: async (data: LoginRequest): Promise<AuthResponse> => {
+    const res = await apiClient.post<AuthResponse>("/auth/login", data)
+    return res.data
   },
 
-  tasks: {
-    list: (projectId: string, status?: string) =>
-      request<{ tasks: Task[]; total: number }>(
-        `/projects/${projectId}/tasks${status ? `?status=${encodeURIComponent(status)}` : ""}`,
-      ),
+  register: async (data: RegisterRequest): Promise<AuthResponse> => {
+    const res = await apiClient.post<AuthResponse>("/auth/register", data)
+    return res.data
+  },
+}
 
-    create: (projectId: string, data: TaskCreate) =>
-      request<Task>(`/projects/${projectId}/tasks`, {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
+// ── Task API ────────────────────────────────────────────────────
 
-    update: (projectId: string, taskId: string, data: TaskUpdate) =>
-      request<Task>(`/projects/${projectId}/tasks/${taskId}`, {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      }),
+export const taskApi = {
+  list: async (status?: string): Promise<Task[]> => {
+    const params = status ? { status } : undefined
+    const res = await apiClient.get<Task[]>("/tasks", { params })
+    return res.data
+  },
 
-    delete: (projectId: string, taskId: string) =>
-      request<void>(`/projects/${projectId}/tasks/${taskId}`, {
-        method: "DELETE",
-      }),
+  get: async (taskId: string): Promise<Task> => {
+    const res = await apiClient.get<Task>(`/tasks/${taskId}`)
+    return res.data
+  },
+
+  create: async (data: TaskCreate): Promise<Task> => {
+    const res = await apiClient.post<Task>("/tasks", data)
+    return res.data
+  },
+
+  update: async (taskId: string, data: TaskUpdate): Promise<Task> => {
+    const res = await apiClient.put<Task>(`/tasks/${taskId}`, data)
+    return res.data
+  },
+
+  updateStatus: async (taskId: string, status: string, position?: number): Promise<Task> => {
+    const res = await apiClient.patch<Task>(`/tasks/${taskId}/status`, { status, position })
+    return res.data
+  },
+
+  delete: async (taskId: string): Promise<void> => {
+    await apiClient.delete(`/tasks/${taskId}`)
   },
 }

@@ -11,11 +11,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { api, type Task, type TaskStatus, type TaskPriority } from "@/lib/api"
+import { taskApi, type Task, type TaskStatus, type TaskPriority } from "@/lib/api"
+import { showToast } from "@/lib/toast"
 
 interface TaskDetailPanelProps {
   task: Task
-  projectId: string
   onClose: () => void
   onUpdated: (task: Task) => void
   onDeleted: (taskId: string) => void
@@ -36,12 +36,12 @@ const PRIORITIES: { value: TaskPriority; label: string }[] = [
   { value: "none", label: "None" },
 ]
 
-export function TaskDetailPanel({ task, projectId, onClose, onUpdated, onDeleted }: TaskDetailPanelProps) {
+export function TaskDetailPanel({ task, onClose, onUpdated, onDeleted }: TaskDetailPanelProps) {
   const [title, setTitle] = useState(task.title)
   const [description, setDescription] = useState(task.description)
   const [status, setStatus] = useState<TaskStatus>(task.status)
   const [priority, setPriority] = useState<TaskPriority>(task.priority)
-  const [assignee, setAssignee] = useState(task.assignee_id ?? "")
+  const [assignee, setAssignee] = useState(task.assignee ?? "")
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -50,7 +50,7 @@ export function TaskDetailPanel({ task, projectId, onClose, onUpdated, onDeleted
     setDescription(task.description)
     setStatus(task.status)
     setPriority(task.priority)
-    setAssignee(task.assignee_id ?? "")
+    setAssignee(task.assignee ?? "")
     setConfirmDelete(false)
   }, [task])
 
@@ -59,16 +59,18 @@ export function TaskDetailPanel({ task, projectId, onClose, onUpdated, onDeleted
     if (!title.trim()) return
     setSaving(true)
     try {
-      const updated = await api.tasks.update(projectId, task.id, {
+      const updated = await taskApi.update(task.id, {
         title: title.trim(),
         description: description.trim(),
         status,
         priority,
-        assignee_id: assignee.trim() || undefined,
+        assignee: assignee.trim() || undefined,
       })
       onUpdated(updated)
+      showToast("Task saved", "success")
     } catch (err) {
-      console.error("Failed to save task:", err)
+      const msg = err instanceof Error ? err.message : "Failed to save task"
+      showToast(msg, "error")
     } finally {
       setSaving(false)
     }
@@ -80,10 +82,11 @@ export function TaskDetailPanel({ task, projectId, onClose, onUpdated, onDeleted
       return
     }
     try {
-      await api.tasks.delete(projectId, task.id)
+      await taskApi.delete(task.id)
       onDeleted(task.id)
     } catch (err) {
-      console.error("Failed to delete task:", err)
+      const msg = err instanceof Error ? err.message : "Failed to delete task"
+      showToast(msg, "error")
     }
   }
 
