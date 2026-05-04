@@ -1,9 +1,10 @@
 import { NavLink } from "react-router-dom"
-import { LayoutGrid, Bot, Play, Box, Settings } from "lucide-react"
+import { LayoutDashboard, LayoutGrid, Bot, Play, Box, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navItems = [
-  { to: "/", icon: LayoutGrid, label: "Board" },
+  { to: "/", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/board", icon: LayoutGrid, label: "Board" },
   { to: "/agents", icon: Bot, label: "Agents" },
   { to: "/runtime", icon: Play, label: "Runtime" },
   { to: "/models", icon: Box, label: "Models" },

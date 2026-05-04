@@ -40,6 +40,29 @@ export interface Project {
   updated_at: string
 }
 
+export interface AgentStatus {
+  id: string
+  name: string
+  status: "idle" | "working" | "blocked" | "offline"
+}
+
+export interface AgentStatusSummary {
+  idle: number
+  working: number
+  blocked: number
+  offline: number
+  total: number
+}
+
+export interface Activity {
+  id: string
+  type: string
+  message: string
+  agent_id?: string
+  task_id?: string
+  created_at: string
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -83,5 +106,15 @@ export const api = {
       request<void>(`/projects/${projectId}/tasks/${taskId}`, {
         method: "DELETE",
       }),
+  },
+
+  agents: {
+    statusAll: () =>
+      request<{ agents: AgentStatus[]; summary: AgentStatusSummary }>("/agents/status/all"),
+  },
+
+  activity: {
+    list: (limit = 20) =>
+      request<{ activities: Activity[]; total: number }>(`/activity?limit=${limit}`),
   },
 }
