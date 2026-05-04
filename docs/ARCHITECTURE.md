@@ -158,6 +158,56 @@ WS     /ws/:project_id                 Real-time event stream
 +---------------------------------------------------+
 ```
 
+## Automation: Task Dispatch System
+
+### Architecture
+```
+scripts/dispatch.py          # Python 调度脚本 (核心)
+scripts/run-dispatch.bat     # Windows 静默启动 (pythonw)
+scripts/run-dispatch-silent.vbs  # 完全无窗口启动
+
+运行方式:
+  python scripts/dispatch.py              # 单次扫描
+  python scripts/dispatch.py --loop 30    # 每 30s 循环
+  wscript scripts/run-dispatch-silent.vbs # 后台静默运行
+```
+
+### 调度逻辑
+1. 扫描 Multica 工作区 issue 状态
+2. in_review 任务 → 标记为 done
+3. 空闲 agent (in_progress < 2) → 从任务池派发新任务
+4. 防重复: 检查标题关键词匹配已有任务
+5. 通过 subprocess + CREATE_NO_WINDOW 运行，不弹窗
+
+### 任务池
+- 后端: auth → project CRUD → WebSocket
+- 前端: UI 改版 → i18n → 像素动画
+- 测试: 等开发 in_review 后自动创建
+
+## Internationalization (i18n)
+
+- 使用 react-i18next + i18next
+- 支持中文 / English 切换
+- 语言选择存 localStorage
+- 所有 UI 文字通过 useTranslation() 获取
+
+## Pixel Character Animations
+
+- Agents 页面展示像素小人工作状态
+- CSS div 拼像素，不依赖外部图片
+- 工作状态: 敲键盘动画
+- 空闲状态: 沙发休息
+- 参考: claude-quest (github.com/Michaelliv/claude-quest)
+
+## UI Design Direction
+
+### 独特风格 (区别于 Motica/Linear)
+- 像素风格 + 现代感混搭
+- 暖色调 (amber/orange) 为主
+- 等宽字体标题 + sans-serif 正文
+- 卡片有轻微像素边框效果
+- 侧边栏带像素风格品牌元素
+
 ## Reference Projects
 
 - **shadcn/ui** — Component primitives, theme system
@@ -166,3 +216,4 @@ WS     /ws/:project_id                 Real-time event stream
 - **Cursor** — Electron + React desktop app architecture
 - **CrewAI** — Multi-agent role definition and orchestration
 - **FastAPI official** — API patterns, WebSocket usage
+- **claude-quest** — Pixel art character animations for agent states
