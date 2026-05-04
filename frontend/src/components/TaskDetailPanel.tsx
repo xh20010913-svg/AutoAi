@@ -89,14 +89,14 @@ export function TaskDetailPanel({ task, projectId, onClose, onUpdated, onDeleted
 
   return (
     <div
-      className="fixed inset-y-0 right-0 z-40 flex w-96 flex-col border-l border-border bg-background shadow-xl"
+      className="fixed inset-y-0 right-0 z-40 flex w-96 flex-col bg-background shadow-xl border-l-2 border-border"
       style={{ animation: "slideInFromRight 0.2s ease-out" }}
     >
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+      <div className="flex items-center justify-between border-b-2 border-border px-4 py-3">
         <h2 className="text-sm font-semibold">Task Details</h2>
         <button
           onClick={onClose}
-          className="rounded-sm p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+          className="p-1 text-muted-foreground hover:bg-accent hover:text-foreground border border-transparent hover:border-border"
         >
           <X className="h-4 w-4" />
         </button>
@@ -165,7 +165,7 @@ export function TaskDetailPanel({ task, projectId, onClose, onUpdated, onDeleted
           />
         </div>
 
-        <div className="mt-auto flex items-center gap-2 border-t border-border pt-4">
+        <div className="mt-auto flex items-center gap-2 border-t-2 border-border pt-4">
           <Button type="submit" disabled={saving || !title.trim()}>
             {saving ? "Saving..." : "Save"}
           </Button>
