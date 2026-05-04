@@ -1,0 +1,124 @@
+{
+  "sidebar": {
+    "board": "看板",
+    "agents": "代理",
+    "sessions": "会话",
+    "help": "帮助",
+    "settings": "设置"
+  },
+  "status": {
+    "idle": "空闲",
+    "running": "运行中",
+    "finished": "已完成",
+    "failed": "失败",
+    "blocked": "阻塞",
+    "stopped": "已停止"
+  },
+  "topbar": {
+    "noProject": "未打开项目",
+    "features": "{passing}/{total} 功能通过",
+    "run": "运行",
+    "stop": "停止"
+  },
+  "init": {
+    "title": "初始化项目",
+    "projectDir": "项目目录",
+    "goal": "目标",
+    "goalPlaceholder": "描述你想要构建的内容...",
+    "featureCount": "功能数量",
+    "agentCommand": "代理命令",
+    "permissionMode": "权限模式",
+    "collaborationMode": "协作模式",
+    "cancel": "取消",
+    "initialize": "初始化",
+    "permissionDefault": "默认",
+    "permissionAcceptEdits": "接受编辑",
+    "permissionAuto": "自动",
+    "permissionBypass": "绕过权限",
+    "collabSingle": "单代理",
+    "collabSubagents": "子代理",
+    "collabTeam": "代理团队"
+  },
+  "task": {
+    "detailTitle": "任务详情",
+    "title": "标题",
+    "description": "描述",
+    "status": "状态",
+    "priority": "优先级",
+    "assignee": "负责人",
+    "save": "保存",
+    "newPlaceholder": "新任务标题...",
+    "add": "添加",
+    "priorityLow": "低",
+    "priorityMedium": "中",
+    "priorityHigh": "高",
+    "priorityUrgent": "紧急"
+  },
+  "board": {
+    "backlog": "待办池",
+    "todo": "待办",
+    "inProgress": "进行中",
+    "inReview": "审核中",
+    "done": "已完成",
+    "blocked": "阻塞",
+    "noProject": "项目未初始化",
+    "noProjectHint": "点击「运行」或先初始化一个项目。",
+    "initButton": "初始化项目"
+  },
+  "agents": {
+    "title": "代理与角色",
+    "generate": "生成角色",
+    "model": "模型: {value}",
+    "tier": "层级: {value}",
+    "provider": "提供商: {value}",
+    "apiKeySet": "API 密钥已设置",
+    "noRoles": "未配置角色",
+    "noRolesHint": "点击「生成角色」以根据项目目标创建角色。"
+  },
+  "sessions": {
+    "title": "会话",
+    "colId": "ID",
+    "colKind": "类型",
+    "colFiles": "文件",
+    "colUpdated": "更新时间",
+    "noSessions": "暂无会话",
+    "noSessionsHint": "运行代理以创建会话。",
+    "back": "← 返回",
+    "empty": "(空)"
+  },
+  "help": {
+    "title": "帮助请求",
+    "answerPlaceholder": "输入你的回答...",
+    "answer": "回答",
+    "close": "关闭",
+    "answerLabel": "回答:",
+    "noRequests": "暂无帮助请求",
+    "noRequestsHint": "代理在需要人工输入时会创建帮助请求。"
+  },
+  "settings": {
+    "title": "设置",
+    "projectInfo": "项目信息",
+    "directory": "目录: {value}",
+    "goal": "目标: {value}",
+    "agentCommand": "代理命令: {value}",
+    "permissionMode": "权限模式: {value}",
+    "collaborationMode": "协作模式: {value}",
+    "nextSession": "下次会话: {value}",
+    "lastStatus": "上次状态: {value}",
+    "taskSpec": "任务规格",
+    "language": "语言",
+    "noProject": "未打开项目"
+  },
+  "common": {
+    "noProject": "未打开项目",
+    "initFirst": "请先初始化项目。",
+    "default": "默认"
+  },
+  "errors": {
+    "failedStart": "启动失败: {msg}",
+    "initFailed": "初始化失败: {msg}",
+    "failedSave": "保存失败: {msg}",
+    "failedLoadSession": "加载会话失败: {msg}",
+    "failed": "操作失败: {msg}"
+  }
+}

@@ -35,10 +35,10 @@ async function loadStatus() {
 function updateTopBar() {
   if (!statusData) return;
   document.getElementById("project-name").textContent =
-    statusData.goal ? statusData.goal.slice(0, 50) : "AutoAI Project";
+    statusData.goal ? statusData.goal.slice(0, 50) : t("topbar.noProject");
   const fp = statusData.features;
   if (fp && fp.total > 0) {
-    document.getElementById("feature-progress").textContent = `${fp.passing}/${fp.total} features`;
+    document.getElementById("feature-progress").textContent = t("topbar.features", { passing: fp.passing, total: fp.total });
   } else {
     document.getElementById("feature-progress").textContent = "";
   }
@@ -46,13 +46,14 @@ function updateTopBar() {
 
 function updateRunStatus() {
   const el = document.getElementById("run-status");
-  const status = currentJobId ? "running" : (statusData ? statusData.last_status : "idle");
-  el.className = `run-status ${status}`;
-  el.querySelector(".status-text").textContent = status.charAt(0).toUpperCase() + status.slice(1);
+  const rawStatus = currentJobId ? "running" : (statusData ? statusData.last_status : "idle");
+  el.className = `run-status ${rawStatus}`;
+  const statusKey = rawStatus === "idle" ? "idle" : rawStatus;
+  el.querySelector(".status-text").textContent = t("status." + statusKey) || (rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1));
 
   const btnRun = document.getElementById("btn-run");
   const btnStop = document.getElementById("btn-stop");
-  if (status === "running") {
+  if (rawStatus === "running") {
     btnRun.style.display = "none";
     btnStop.style.display = "";
   } else {
@@ -77,7 +78,7 @@ async function handleRun() {
     updateRunStatus();
     pollJob(currentJobId);
   } catch (e) {
-    alert("Failed to start: " + e.message);
+    alert(t("errors.failedStart", { msg: e.message }));
   }
 }
 
@@ -132,7 +133,7 @@ async function handleInit(e) {
     await loadStatus();
     renderPage();
   } catch (e) {
-    alert("Init failed: " + e.message);
+    alert(t("errors.initFailed", { msg: e.message }));
   }
 }
 
@@ -147,33 +148,33 @@ function openTaskDetail(task) {
 
   content.innerHTML = `
     <div class="form-group">
-      <label>Title</label>
+      <label>${t("task.title")}</label>
       <input type="text" id="detail-title" value="${escHtml(task.title)}">
     </div>
     <div class="form-group">
-      <label>Description</label>
+      <label>${t("task.description")}</label>
       <textarea id="detail-desc">${escHtml(task.description)}</textarea>
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label>Status</label>
+        <label>${t("task.status")}</label>
         <select id="detail-status">
-          ${statuses.map((s) => `<option value="${s}" ${s === task.status ? "selected" : ""}>${s}</option>`).join("")}
+          ${statuses.map((s) => `<option value="${s}" ${s === task.status ? "selected" : ""}>${t("board." + s.replace("in_progress", "inProgress").replace("in_review", "inReview"))}</option>`).join("")}
         </select>
       </div>
       <div class="form-group">
-        <label>Priority</label>
+        <label>${t("task.priority")}</label>
         <select id="detail-priority">
-          ${priorities.map((p) => `<option value="${p}" ${p === task.priority ? "selected" : ""}>${p}</option>`).join("")}
+          ${priorities.map((p) => `<option value="${p}" ${p === task.priority ? "selected" : ""}>${t("task.priority" + p.charAt(0).toUpperCase() + p.slice(1))}</option>`).join("")}
         </select>
       </div>
     </div>
     <div class="form-group">
-      <label>Assignee</label>
+      <label>${t("task.assignee")}</label>
       <input type="text" id="detail-assignee" value="${escHtml(task.assignee)}">
     </div>
     <div class="form-actions">
-      <button class="btn btn-primary" onclick="saveTaskDetail('${task.id}')">Save</button>
+      <button class="btn btn-primary" onclick="saveTaskDetail('${task.id}')">${t("task.save")}</button>
     </div>
   `;
 }
@@ -196,7 +197,7 @@ async function saveTaskDetail(taskId) {
     await loadStatus();
     renderPage();
   } catch (e) {
-    alert("Failed to save: " + e.message);
+    alert(t("errors.failedSave", { msg: e.message }));
   }
 }
 
@@ -225,7 +226,7 @@ async function renderPage() {
 // --- Board Page ---
 async function renderBoard(container) {
   if (!projectDir) {
-    container.innerHTML = `<div class="empty-state"><h3>No project initialized</h3><p>Click "Run" or initialize a project first.</p><br><button class="btn btn-primary" onclick="openInitModal()">Initialize Project</button></div>`;
+    container.innerHTML = `<div class="empty-state"><h3>${t("board.noProject")}</h3><p>${t("board.noProjectHint")}</p><br><button class="btn btn-primary" onclick="openInitModal()">${t("board.initButton")}</button></div>`;
     return;
   }
   let tasks = [];
@@ -235,11 +236,18 @@ async function renderBoard(container) {
   } catch (e) {}
 
   const statuses = ["backlog", "todo", "in_progress", "in_review", "done", "blocked"];
-  const statusLabels = { backlog: "Backlog", todo: "Todo", in_progress: "In Progress", in_review: "In Review", done: "Done", blocked: "Blocked" };
+  const statusLabels = {
+    backlog: t("board.backlog"),
+    todo: t("board.todo"),
+    in_progress: t("board.inProgress"),
+    in_review: t("board.inReview"),
+    done: t("board.done"),
+    blocked: t("board.blocked"),
+  };
 
   let html = '<div class="board">';
   for (const status of statuses) {
-    const statusTasks = tasks.filter((t) => t.status === status);
+    const statusTasks = tasks.filter((tr) => tr.status === status);
     html += `<div class="board-column" data-status="${status}">
       <div class="column-header">
         <span>${statusLabels[status]}</span>
@@ -250,7 +258,7 @@ async function renderBoard(container) {
       html += `<div class="task-card" draggable="true" ondragstart="onDragStart(event, '${task.id}')" onclick="openTaskDetail(${escJsonAttr(task)})">
         <div class="task-title">${escHtml(task.title)}</div>
         <div class="task-meta">
-          <span class="priority-badge priority-${task.priority}">${task.priority}</span>
+          <span class="priority-badge priority-${task.priority}">${t("task.priority" + task.priority.charAt(0).toUpperCase() + task.priority.slice(1))}</span>
           ${task.assignee ? `<span class="assignee-badge">${escHtml(task.assignee)}</span>` : ""}
         </div>
       </div>`;
@@ -262,18 +270,19 @@ async function renderBoard(container) {
   // Add new task form at top
   html = `<div style="margin-bottom: 16px;">
     <form onsubmit="handleCreateTask(event)" style="display: flex; gap: 8px;">
-      <input type="text" id="new-task-title" placeholder="New task title..." style="flex:1; padding: 8px 10px; background: #1a1a2e; border: 1px solid #2a2a3e; border-radius: 6px; color: #e0e0e0; font-size: 13px;">
+      <input type="text" id="new-task-title" data-i18n-placeholder="task.newPlaceholder" placeholder="New task title..." style="flex:1; padding: 8px 10px; background: #1a1a2e; border: 1px solid #2a2a3e; border-radius: 6px; color: #e0e0e0; font-size: 13px;">
       <select id="new-task-priority" style="padding: 8px; background: #1a1a2e; border: 1px solid #2a2a3e; border-radius: 6px; color: #e0e0e0; font-size: 13px;">
-        <option value="medium">Medium</option>
-        <option value="low">Low</option>
-        <option value="high">High</option>
-        <option value="urgent">Urgent</option>
+        <option value="medium">${t("task.priorityMedium")}</option>
+        <option value="low">${t("task.priorityLow")}</option>
+        <option value="high">${t("task.priorityHigh")}</option>
+        <option value="urgent">${t("task.priorityUrgent")}</option>
       </select>
-      <button type="submit" class="btn btn-primary">Add</button>
+      <button type="submit" class="btn btn-primary">${t("task.add")}</button>
     </form>
   </div>` + html;
 
   container.innerHTML = html;
+  applyTranslations();
 }
 
 let dragTaskId = null;
@@ -288,7 +297,7 @@ async function onDrop(e, newStatus) {
       await AutoAIAPI.updateTask(dragTaskId, { project_dir: projectDir, status: newStatus });
       await loadStatus();
       renderPage();
-    } catch (e) { alert("Failed: " + e.message); }
+    } catch (e) { alert(t("errors.failed", { msg: e.message })); }
   }
   dragTaskId = null;
 }
@@ -306,13 +315,13 @@ async function handleCreateTask(e) {
     document.getElementById("new-task-title").value = "";
     await loadStatus();
     renderPage();
-  } catch (e) { alert("Failed: " + e.message); }
+  } catch (e) { alert(t("errors.failed", { msg: e.message })); }
 }
 
 // --- Agents Page ---
 async function renderAgents(container) {
   if (!projectDir) {
-    container.innerHTML = '<div class="empty-state"><h3>No project</h3><p>Initialize a project first.</p></div>';
+    container.innerHTML = `<div class="empty-state"><h3>${t("common.noProject")}</h3><p>${t("common.initFirst")}</p></div>`;
     return;
   }
   let roles = [];
@@ -322,9 +331,9 @@ async function renderAgents(container) {
   } catch (e) {}
 
   let html = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-    <h2 style="font-size: 18px;">Agents & Roles</h2>
+    <h2 style="font-size: 18px;">${t("agents.title")}</h2>
     <div>
-      <button class="btn" onclick="handleGenerateRoles()">Generate Roles</button>
+      <button class="btn" onclick="handleGenerateRoles()">${t("agents.generate")}</button>
     </div>
   </div>`;
 
@@ -333,16 +342,16 @@ async function renderAgents(container) {
       <h4>${escHtml(role.display_name || role.id)}</h4>
       <div class="agent-desc">${escHtml(role.description)}</div>
       <div class="agent-meta">
-        <span>Model: ${escHtml(role.model || "default")}</span>
-        <span>Tier: ${role.cost_tier}</span>
-        <span>Provider: ${escHtml(role.provider)}</span>
-        ${role.has_api_key ? "<span style='color:#4ade80'>API key set</span>" : ""}
+        <span>${t("agents.model", { value: escHtml(role.model || t("common.default")) })}</span>
+        <span>${t("agents.tier", { value: role.cost_tier })}</span>
+        <span>${t("agents.provider", { value: escHtml(role.provider) })}</span>
+        ${role.has_api_key ? `<span style='color:#4ade80'>${t("agents.apiKeySet")}</span>` : ""}
       </div>
     </div>`;
   }
 
   if (!roles.length) {
-    html += '<div class="empty-state"><h3>No roles configured</h3><p>Click "Generate Roles" to create roles based on your project goal.</p></div>';
+    html += `<div class="empty-state"><h3>${t("agents.noRoles")}</h3><p>${t("agents.noRolesHint")}</p></div>`;
   }
 
   container.innerHTML = html;
@@ -352,13 +361,13 @@ async function handleGenerateRoles() {
   try {
     await AutoAIAPI.generateRoles({ project_dir: projectDir });
     renderPage();
-  } catch (e) { alert("Failed: " + e.message); }
+  } catch (e) { alert(t("errors.failed", { msg: e.message })); }
 }
 
 // --- Sessions Page ---
 async function renderSessions(container) {
   if (!projectDir) {
-    container.innerHTML = '<div class="empty-state"><h3>No project</h3></div>';
+    container.innerHTML = `<div class="empty-state"><h3>${t("common.noProject")}</h3></div>`;
     return;
   }
   let sessions = [];
@@ -367,15 +376,15 @@ async function renderSessions(container) {
     sessions = result.sessions;
   } catch (e) {}
 
-  let html = `<h2 style="font-size: 18px; margin-bottom: 16px;">Sessions</h2>`;
-  html += '<table class="data-table"><thead><tr><th>ID</th><th>Kind</th><th>Files</th><th>Updated</th></tr></thead><tbody>';
+  let html = `<h2 style="font-size: 18px; margin-bottom: 16px;">${t("sessions.title")}</h2>`;
+  html += `<table class="data-table"><thead><tr><th>${t("sessions.colId")}</th><th>${t("sessions.colKind")}</th><th>${t("sessions.colFiles")}</th><th>${t("sessions.colUpdated")}</th></tr></thead><tbody>`;
   for (const s of sessions) {
     const date = new Date(s.updated_at * 1000).toLocaleString();
     html += `<tr onclick="openSessionDetail('${s.id}')"><td>${escHtml(s.id)}</td><td>${s.kind}</td><td>${s.files.length}</td><td>${date}</td></tr>`;
   }
   html += "</tbody></table>";
   if (!sessions.length) {
-    html += '<div class="empty-state"><h3>No sessions yet</h3><p>Run the harness to create sessions.</p></div>';
+    html += `<div class="empty-state"><h3>${t("sessions.noSessions")}</h3><p>${t("sessions.noSessionsHint")}</p></div>`;
   }
   container.innerHTML = html;
 }
@@ -385,7 +394,7 @@ async function openSessionDetail(sessionId) {
   try {
     const result = await AutoAIAPI.getSession(sessionId, projectDir);
     const session = result.session;
-    let html = `<div style="margin-bottom: 12px;"><button class="btn" onclick="renderPage()">&larr; Back</button></div>`;
+    let html = `<div style="margin-bottom: 12px;"><button class="btn" onclick="renderPage()">${t("sessions.back")}</button></div>`;
     html += `<h3 style="margin-bottom: 12px;">${escHtml(sessionId)}</h3>`;
     html += '<div class="session-tabs">';
     const fileKeys = Object.keys(session.files);
@@ -393,26 +402,26 @@ async function openSessionDetail(sessionId) {
       html += `<div class="session-tab ${i === 0 ? "active" : ""}" onclick="switchSessionTab(this, '${key}')">${key}</div>`;
     });
     html += "</div>";
-    html += `<div id="session-file-content"><div class="session-log">${escHtml(session.files[fileKeys[0]] || "(empty)")}</div></div>`;
+    html += `<div id="session-file-content"><div class="session-log">${escHtml(session.files[fileKeys[0]] || t("sessions.empty"))}</div></div>`;
     container.innerHTML = html;
     container._sessionFiles = session.files;
   } catch (e) {
-    alert("Failed to load session: " + e.message);
+    alert(t("errors.failedLoadSession", { msg: e.message }));
   }
 }
 
 function switchSessionTab(el, key) {
-  document.querySelectorAll(".session-tab").forEach((t) => t.classList.remove("active"));
+  document.querySelectorAll(".session-tab").forEach((tr) => tr.classList.remove("active"));
   el.classList.add("active");
   const container = document.getElementById("page-content");
   const files = container._sessionFiles || {};
-  document.getElementById("session-file-content").innerHTML = `<div class="session-log">${escHtml(files[key] || "(empty)")}</div>`;
+  document.getElementById("session-file-content").innerHTML = `<div class="session-log">${escHtml(files[key] || t("sessions.empty"))}</div>`;
 }
 
 // --- Help Page ---
 async function renderHelp(container) {
   if (!projectDir) {
-    container.innerHTML = '<div class="empty-state"><h3>No project</h3></div>';
+    container.innerHTML = `<div class="empty-state"><h3>${t("common.noProject")}</h3></div>`;
     return;
   }
   let requests = [];
@@ -421,7 +430,7 @@ async function renderHelp(container) {
     requests = result.help_requests;
   } catch (e) {}
 
-  let html = `<h2 style="font-size: 18px; margin-bottom: 16px;">Help Requests</h2>`;
+  let html = `<h2 style="font-size: 18px; margin-bottom: 16px;">${t("help.title")}</h2>`;
 
   for (const req of requests) {
     html += `<div class="help-card severity-${req.severity}">
@@ -430,20 +439,21 @@ async function renderHelp(container) {
         <span class="priority-badge priority-${req.severity === "blocking" ? "urgent" : req.severity}">${req.status}</span>
       </div>
       ${req.detail ? `<div class="help-detail">${escHtml(req.detail)}</div>` : ""}
-      ${req.answer ? `<div class="help-answer"><strong>Answer:</strong> ${escHtml(req.answer)}</div>` : ""}
+      ${req.answer ? `<div class="help-answer"><strong>${t("help.answerLabel")}</strong> ${escHtml(req.answer)}</div>` : ""}
       ${req.status === "open" ? `<div style="margin-top: 8px; display:flex; gap:6px;">
-        <input type="text" id="answer-${req.id}" placeholder="Your answer..." style="flex:1; padding: 6px 8px; background: #0f0f1a; border: 1px solid #2a2a3e; border-radius: 4px; color: #e0e0e0; font-size: 12px;">
-        <button class="btn btn-sm btn-primary" onclick="handleAnswerHelp('${req.id}')">Answer</button>
-        <button class="btn btn-sm" onclick="handleCloseHelp('${req.id}')">Close</button>
+        <input type="text" id="answer-${req.id}" data-i18n-placeholder="help.answerPlaceholder" placeholder="Your answer..." style="flex:1; padding: 6px 8px; background: #0f0f1a; border: 1px solid #2a2a3e; border-radius: 4px; color: #e0e0e0; font-size: 12px;">
+        <button class="btn btn-sm btn-primary" onclick="handleAnswerHelp('${req.id}')">${t("help.answer")}</button>
+        <button class="btn btn-sm" onclick="handleCloseHelp('${req.id}')">${t("help.close")}</button>
       </div>` : ""}
     </div>`;
   }
 
   if (!requests.length) {
-    html += '<div class="empty-state"><h3>No help requests</h3><p>Agents will create help requests when they need human input.</p></div>';
+    html += `<div class="empty-state"><h3>${t("help.noRequests")}</h3><p>${t("help.noRequestsHint")}</p></div>`;
   }
 
   container.innerHTML = html;
+  applyTranslations();
 }
 
 async function handleAnswerHelp(id) {
@@ -452,20 +462,20 @@ async function handleAnswerHelp(id) {
   try {
     await AutoAIAPI.answerHelp(id, { project_dir: projectDir, answer });
     renderPage();
-  } catch (e) { alert("Failed: " + e.message); }
+  } catch (e) { alert(t("errors.failed", { msg: e.message })); }
 }
 
 async function handleCloseHelp(id) {
   try {
     await AutoAIAPI.closeHelp(id, { project_dir: projectDir });
     renderPage();
-  } catch (e) { alert("Failed: " + e.message); }
+  } catch (e) { alert(t("errors.failed", { msg: e.message })); }
 }
 
 // --- Settings Page ---
 async function renderSettings(container) {
   if (!projectDir) {
-    container.innerHTML = '<div class="empty-state"><h3>No project</h3></div>';
+    container.innerHTML = `<div class="empty-state"><h3>${t("settings.noProject")}</h3></div>`;
     return;
   }
   let spec = "";
@@ -474,27 +484,46 @@ async function renderSettings(container) {
     spec = result.spec;
   } catch (e) {}
 
-  let html = `<h2 style="font-size: 18px; margin-bottom: 16px;">Settings</h2>`;
+  let html = `<h2 style="font-size: 18px; margin-bottom: 16px;">${t("settings.title")}</h2>`;
+
+  // Language switcher
+  html += `<div class="agent-card">
+    <h4>${t("settings.language")}</h4>
+    <div style="margin-top: 8px;">
+      <select id="lang-switcher" onchange="switchLang(this.value)" style="padding: 8px 10px; background: #1a1a2e; border: 1px solid #2a2a3e; border-radius: 6px; color: #e0e0e0; font-size: 13px; min-width: 140px;">
+        <option value="en" ${getLang() === "en" ? "selected" : ""}>English</option>
+        <option value="zh" ${getLang() === "zh" ? "selected" : ""}>中文</option>
+      </select>
+    </div>
+  </div>`;
+
   if (statusData) {
     html += `<div class="agent-card">
-      <h4>Project Info</h4>
+      <h4>${t("settings.projectInfo")}</h4>
       <div class="agent-meta" style="flex-direction: column; gap: 4px;">
-        <span>Directory: ${escHtml(statusData.project_dir)}</span>
-        <span>Goal: ${escHtml(statusData.goal)}</span>
-        <span>Agent Command: ${escHtml(statusData.agent_command)}</span>
-        <span>Permission Mode: ${statusData.permission_mode}</span>
-        <span>Collaboration Mode: ${statusData.collaboration_mode}</span>
-        <span>Next Session: ${statusData.next_session}</span>
-        <span>Last Status: ${statusData.last_status}</span>
+        <span>${t("settings.directory", { value: escHtml(statusData.project_dir) })}</span>
+        <span>${t("settings.goal", { value: escHtml(statusData.goal) })}</span>
+        <span>${t("settings.agentCommand", { value: escHtml(statusData.agent_command) })}</span>
+        <span>${t("settings.permissionMode", { value: statusData.permission_mode })}</span>
+        <span>${t("settings.collaborationMode", { value: statusData.collaboration_mode })}</span>
+        <span>${t("settings.nextSession", { value: statusData.next_session })}</span>
+        <span>${t("settings.lastStatus", { value: statusData.last_status })}</span>
       </div>
     </div>`;
   }
   html += `<div class="agent-card">
-    <h4>Task Spec</h4>
-    <div class="session-log" style="max-height: 300px;">${escHtml(spec || "(empty)")}</div>
+    <h4>${t("settings.taskSpec")}</h4>
+    <div class="session-log" style="max-height: 300px;">${escHtml(spec || t("sessions.empty"))}</div>
   </div>`;
 
   container.innerHTML = html;
+}
+
+// --- Language Switch ---
+async function switchLang(lang) {
+  await loadLang(lang);
+  applyTranslations();
+  renderPage();
 }
 
 // --- WebSocket Events ---
@@ -522,6 +551,9 @@ function escJsonAttr(obj) {
 
 // --- Bootstrap ---
 async function init() {
+  // Initialize i18n first
+  await initI18n();
+
   // Try to detect project dir from URL or stored value
   const stored = localStorage.getItem("autoai_project_dir");
   if (stored) {

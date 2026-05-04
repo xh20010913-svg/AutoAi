@@ -1,0 +1,124 @@
+{
+  "sidebar": {
+    "board": "Board",
+    "agents": "Agents",
+    "sessions": "Sessions",
+    "help": "Help",
+    "settings": "Settings"
+  },
+  "status": {
+    "idle": "Idle",
+    "running": "Running",
+    "finished": "Finished",
+    "failed": "Failed",
+    "blocked": "Blocked",
+    "stopped": "Stopped"
+  },
+  "topbar": {
+    "noProject": "No project",
+    "features": "{passing}/{total} features",
+    "run": "Run",
+    "stop": "Stop"
+  },
+  "init": {
+    "title": "Initialize Project",
+    "projectDir": "Project Directory",
+    "goal": "Goal",
+    "goalPlaceholder": "Describe what you want to build...",
+    "featureCount": "Feature Count",
+    "agentCommand": "Agent Command",
+    "permissionMode": "Permission Mode",
+    "collaborationMode": "Collaboration Mode",
+    "cancel": "Cancel",
+    "initialize": "Initialize",
+    "permissionDefault": "Default",
+    "permissionAcceptEdits": "Accept Edits",
+    "permissionAuto": "Auto",
+    "permissionBypass": "Bypass Permissions",
+    "collabSingle": "Single Agent",
+    "collabSubagents": "Subagents",
+    "collabTeam": "Agent Team"
+  },
+  "task": {
+    "detailTitle": "Task Detail",
+    "title": "Title",
+    "description": "Description",
+    "status": "Status",
+    "priority": "Priority",
+    "assignee": "Assignee",
+    "save": "Save",
+    "newPlaceholder": "New task title...",
+    "add": "Add",
+    "priorityLow": "Low",
+    "priorityMedium": "Medium",
+    "priorityHigh": "High",
+    "priorityUrgent": "Urgent"
+  },
+  "board": {
+    "backlog": "Backlog",
+    "todo": "Todo",
+    "inProgress": "In Progress",
+    "inReview": "In Review",
+    "done": "Done",
+    "blocked": "Blocked",
+    "noProject": "No project initialized",
+    "noProjectHint": "Click \"Run\" or initialize a project first.",
+    "initButton": "Initialize Project"
+  },
+  "agents": {
+    "title": "Agents & Roles",
+    "generate": "Generate Roles",
+    "model": "Model: {value}",
+    "tier": "Tier: {value}",
+    "provider": "Provider: {value}",
+    "apiKeySet": "API key set",
+    "noRoles": "No roles configured",
+    "noRolesHint": "Click \"Generate Roles\" to create roles based on your project goal."
+  },
+  "sessions": {
+    "title": "Sessions",
+    "colId": "ID",
+    "colKind": "Kind",
+    "colFiles": "Files",
+    "colUpdated": "Updated",
+    "noSessions": "No sessions yet",
+    "noSessionsHint": "Run the harness to create sessions.",
+    "back": "← Back",
+    "empty": "(empty)"
+  },
+  "help": {
+    "title": "Help Requests",
+    "answerPlaceholder": "Your answer...",
+    "answer": "Answer",
+    "close": "Close",
+    "answerLabel": "Answer:",
+    "noRequests": "No help requests",
+    "noRequestsHint": "Agents will create help requests when they need human input."
+  },
+  "settings": {
+    "title": "Settings",
+    "projectInfo": "Project Info",
+    "directory": "Directory: {value}",
+    "goal": "Goal: {value}",
+    "agentCommand": "Agent Command: {value}",
+    "permissionMode": "Permission Mode: {value}",
+    "collaborationMode": "Collaboration Mode: {value}",
+    "nextSession": "Next Session: {value}",
+    "lastStatus": "Last Status: {value}",
+    "taskSpec": "Task Spec",
+    "language": "Language",
+    "noProject": "No project"
+  },
+  "common": {
+    "noProject": "No project",
+    "initFirst": "Initialize a project first.",
+    "default": "default"
+  },
+  "errors": {
+    "failedStart": "Failed to start: {msg}",
+    "initFailed": "Init failed: {msg}",
+    "failedSave": "Failed to save: {msg}",
+    "failedLoadSession": "Failed to load session: {msg}",
+    "failed": "Failed: {msg}"
+  }
+}
