@@ -1,40 +1,54 @@
-import { Bot, Play, Square, Settings, User, Code, TestTube, Briefcase } from "lucide-react"
+import { Bot, Settings, User, Code, TestTube, Briefcase } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { PixelCharacter } from "@/components/pixel/PixelCharacter"
 import type { ColorPreset } from "@/components/pixel/PixelCharacter"
+import { CreateAgentDialog } from "@/components/CreateAgentDialog"
+import { AgentDetailPanel } from "@/components/AgentDetailPanel"
+import { api, type Agent, type AgentStatus, type Role } from "@/lib/api"
+import { useI18n } from "@/context/i18n-context"
 
-interface Agent {
-  id: string
-  name: string
-  role: string
-  status: "idle" | "running" | "error"
-  model: string
-  completedTasks: number
-  icon: typeof Bot
-  colorPreset: ColorPreset
+const COLOR_PRESETS: ColorPreset[] = ["blue", "green", "purple", "amber", "pink", "cyan", "red", "teal"]
+
+const ROLE_ICONS: Record<string, typeof Bot> = {
+  "Project Manager": Briefcase,
+  "Backend Developer": Code,
+  "Frontend Developer": User,
+  "QA Tester": TestTube,
 }
 
-const mockAgents: Agent[] = [
-  { id: "1", name: "Project Manager", role: "Project Manager", status: "running", model: "claude-sonnet-4-6", completedTasks: 23, icon: Briefcase, colorPreset: "blue" },
-  { id: "2", name: "Backend Dev #1", role: "Backend Developer", status: "running", model: "claude-sonnet-4-6", completedTasks: 45, icon: Code, colorPreset: "green" },
-  { id: "3", name: "Backend Dev #2", role: "Backend Developer", status: "idle", model: "claude-haiku-4-5", completedTasks: 31, icon: Code, colorPreset: "purple" },
-  { id: "4", name: "Backend Dev #3", role: "Backend Developer", status: "error", model: "claude-sonnet-4-6", completedTasks: 28, icon: Code, colorPreset: "amber" },
-  { id: "5", name: "Frontend Dev", role: "Frontend Developer", status: "running", model: "claude-sonnet-4-6", completedTasks: 19, icon: User, colorPreset: "pink" },
-  { id: "6", name: "Tester #1", role: "QA Tester", status: "idle", model: "claude-haiku-4-5", completedTasks: 67, icon: TestTube, colorPreset: "cyan" },
-  { id: "7", name: "Tester #2", role: "QA Tester", status: "running", model: "claude-haiku-4-5", completedTasks: 52, icon: TestTube, colorPreset: "red" },
-  { id: "8", name: "Tester #3", role: "QA Tester", status: "idle", model: "claude-haiku-4-5", completedTasks: 38, icon: TestTube, colorPreset: "teal" },
-]
+function getPixelStatus(agentStatus: AgentStatus): "idle" | "running" | "error" {
+  if (agentStatus === "error") return "error"
+  if (agentStatus === "working") return "running"
+  return "idle"
+}
 
-function AgentCard({ agent }: { agent: Agent }) {
+function AgentCard({ agent, index, onClick }: { agent: Agent; index: number; onClick: () => void }) {
+  const { t } = useI18n()
   const [hovered, setHovered] = useState(false)
-  const Icon = agent.icon
+  const Icon = ROLE_ICONS[agent.role] || Bot
+  const colorPreset = COLOR_PRESETS[index % COLOR_PRESETS.length]
+
+  const statusColors: Record<AgentStatus, string> = {
+    idle: "bg-emerald-500",
+    working: "bg-blue-500",
+    blocked: "bg-orange-500",
+    error: "bg-red-500 animate-pulse",
+  }
+
+  const statusLabels: Record<AgentStatus, string> = {
+    idle: t("status.idle"),
+    working: t("status.working"),
+    blocked: t("status.blocked"),
+    error: t("status.error"),
+  }
 
   return (
     <div
-      className="group relative bg-card p-4 transition-colors hover:border-primary pixel-border"
+      className="group relative bg-card p-4 transition-colors hover:border-primary pixel-border cursor-pointer"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onClick={onClick}
     >
       <div className="flex items-start gap-3">
         <div className="flex h-10 w-10 items-center justify-center bg-primary/15 text-primary border-2 border-primary/30">
@@ -43,30 +57,26 @@ function AgentCard({ agent }: { agent: Agent }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-medium text-card-foreground" style={{ fontFamily: "var(--font-heading, monospace)" }}>{agent.name}</h3>
-            <div className={cn(
-              "h-2 w-2 rounded-full",
-              agent.status === "running" ? "bg-emerald-500 animate-pulse" :
-              agent.status === "error" ? "bg-red-500 animate-pulse" :
-              "bg-zinc-500"
-            )} />
+            <div className={cn("h-2 w-2 rounded-full", statusColors[agent.status])} />
           </div>
           <p className="text-xs text-muted-foreground">{agent.role}</p>
         </div>
       </div>
       <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
         <span className="font-mono text-[11px]">{agent.model}</span>
-        <span>{agent.completedTasks} tasks done</span>
+        <span className="flex items-center gap-2">
+          <span>{agent.current_tasks} {t("agents.currentTasks")}</span>
+          <span>{agent.completed_tasks} {t("agents.tasksDone")}</span>
+        </span>
       </div>
-      <PixelCharacter status={agent.status} colorPreset={agent.colorPreset} />
+      <PixelCharacter status={getPixelStatus(agent.status)} colorPreset={colorPreset} />
       {hovered && (
         <div className="absolute inset-x-0 bottom-0 flex justify-end gap-1 bg-gradient-to-t from-card p-2">
-          <button className="p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors border border-transparent hover:border-border" title="Start">
-            <Play className="h-3.5 w-3.5" />
-          </button>
-          <button className="p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors border border-transparent hover:border-border" title="Stop">
-            <Square className="h-3.5 w-3.5" />
-          </button>
-          <button className="p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors border border-transparent hover:border-border" title="Settings">
+          <button
+            className="p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors border border-transparent hover:border-border"
+            title={t("agents.settings")}
+            onClick={(e) => { e.stopPropagation(); onClick() }}
+          >
             <Settings className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -76,32 +86,120 @@ function AgentCard({ agent }: { agent: Agent }) {
 }
 
 export function AgentsPage() {
-  const running = mockAgents.filter((a) => a.status === "running").length
-  const errored = mockAgents.filter((a) => a.status === "error").length
+  const { t } = useI18n()
+  const [agents, setAgents] = useState<Agent[]>([])
+  const [roles, setRoles] = useState<Role[]>([])
+  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [agentsRes, rolesRes] = await Promise.all([
+        api.agents.list(),
+        api.roles.list(),
+      ])
+      setAgents(agentsRes.agents)
+      setRoles(rolesRes.roles)
+      setError(null)
+    } catch (err) {
+      console.error("Failed to fetch agents:", err)
+      setError("Failed to load agents")
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  function handleAgentCreated(agent: Agent) {
+    setAgents((prev) => [...prev, agent])
+  }
+
+  function handleAgentUpdated(agent: Agent) {
+    setAgents((prev) => prev.map((a) => (a.id === agent.id ? agent : a)))
+    setSelectedAgent(agent)
+  }
+
+  function handleAgentDeleted(agentId: string) {
+    setAgents((prev) => prev.filter((a) => a.id !== agentId))
+    setSelectedAgent(null)
+  }
+
+  const running = agents.filter((a) => a.status === "working").length
+  const errored = agents.filter((a) => a.status === "error").length
+  const blocked = agents.filter((a) => a.status === "blocked").length
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-sm text-muted-foreground">Loading...</div>
+      </div>
+    )
+  }
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-lg font-semibold mb-1">Agents</h1>
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <span>Total: {mockAgents.length}</span>
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 bg-emerald-500 animate-pulse" />
-            Running: {running}
-          </span>
-          {errored > 0 && (
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-lg font-semibold mb-1">{t("agents.title")}</h1>
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <span>{t("common.total")}: {agents.length}</span>
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-              Error: {errored}
+              <span className="h-2 w-2 rounded-full bg-blue-500" />
+              {t("agents.running")}: {running}
             </span>
-          )}
+            {blocked > 0 && (
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-orange-500" />
+                {t("agents.blocked")}: {blocked}
+              </span>
+            )}
+            {errored > 0 && (
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                {t("agents.error")}: {errored}
+              </span>
+            )}
+          </div>
         </div>
+        <CreateAgentDialog roles={roles} onCreated={handleAgentCreated} />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {mockAgents.map((agent) => (
-          <AgentCard key={agent.id} agent={agent} />
-        ))}
-      </div>
+
+      {error && (
+        <div className="mb-4 p-3 border-2 border-destructive/50 bg-destructive/10 text-sm text-destructive pixel-border-sm">
+          {error}
+        </div>
+      )}
+
+      {agents.length === 0 && !error ? (
+        <div className="flex items-center justify-center h-64 border-2 border-dashed border-border pixel-border">
+          <p className="text-sm text-muted-foreground">{t("agents.noAgents")}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {agents.map((agent, index) => (
+            <AgentCard
+              key={agent.id}
+              agent={agent}
+              index={index}
+              onClick={() => setSelectedAgent(agent)}
+            />
+          ))}
+        </div>
+      )}
+
+      {selectedAgent && (
+        <AgentDetailPanel
+          agent={selectedAgent}
+          roles={roles}
+          onClose={() => setSelectedAgent(null)}
+          onUpdated={handleAgentUpdated}
+          onDeleted={handleAgentDeleted}
+        />
+      )}
     </div>
   )
 }

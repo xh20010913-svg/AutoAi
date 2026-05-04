@@ -2,6 +2,62 @@ const API_BASE = "http://localhost:18765/api/v1"
 
 export type TaskStatus = "todo" | "in_progress" | "in_review" | "done" | "blocked"
 export type TaskPriority = "high" | "medium" | "low" | "none"
+export type AgentStatus = "idle" | "working" | "blocked" | "error"
+
+export interface Agent {
+  id: string
+  name: string
+  role: string
+  status: AgentStatus
+  model: string
+  provider: string
+  api_key_env: string
+  current_tasks: number
+  completed_tasks: number
+  created_at: string
+  updated_at: string
+}
+
+export interface AgentCreate {
+  name: string
+  role: string
+  model?: string
+  provider?: string
+  api_key_env?: string
+}
+
+export interface AgentUpdate {
+  name?: string
+  role?: string
+  model?: string
+  provider?: string
+  api_key_env?: string
+  status?: AgentStatus
+}
+
+export interface Role {
+  id: string
+  name: string
+  description: string
+  budget_level: string
+  authority: string
+  created_at: string
+  updated_at: string
+}
+
+export interface RoleCreate {
+  name: string
+  description?: string
+  budget_level?: string
+  authority?: string
+}
+
+export interface RoleUpdate {
+  name?: string
+  description?: string
+  budget_level?: string
+  authority?: string
+}
 
 export interface Task {
   id: string
@@ -81,6 +137,50 @@ export const api = {
 
     delete: (projectId: string, taskId: string) =>
       request<void>(`/projects/${projectId}/tasks/${taskId}`, {
+        method: "DELETE",
+      }),
+  },
+
+  agents: {
+    list: () => request<{ agents: Agent[]; total: number }>("/agents"),
+
+    get: (agentId: string) => request<Agent>(`/agents/${agentId}`),
+
+    create: (data: AgentCreate) =>
+      request<Agent>("/agents", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+
+    update: (agentId: string, data: AgentUpdate) =>
+      request<Agent>(`/agents/${agentId}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+
+    delete: (agentId: string) =>
+      request<void>(`/agents/${agentId}`, {
+        method: "DELETE",
+      }),
+  },
+
+  roles: {
+    list: () => request<{ roles: Role[]; total: number }>("/roles"),
+
+    create: (data: RoleCreate) =>
+      request<Role>("/roles", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+
+    update: (roleId: string, data: RoleUpdate) =>
+      request<Role>(`/roles/${roleId}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+
+    delete: (roleId: string) =>
+      request<void>(`/roles/${roleId}`, {
         method: "DELETE",
       }),
   },
