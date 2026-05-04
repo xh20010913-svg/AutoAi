@@ -77,8 +77,11 @@ export function RuntimePage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-lg font-semibold">Runtime</h1>
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-semibold">Runtime</h1>
+          <span className="text-[10px] font-mono text-muted-foreground/40 tracking-wider uppercase">// live console</span>
+        </div>
         <div className="flex items-center gap-2">
           <div className={cn(
             "flex items-center gap-1.5 px-2 py-1 text-xs font-medium border",
@@ -102,14 +105,18 @@ export function RuntimePage() {
         </div>
       </div>
       <div className="flex-1 overflow-hidden flex flex-col pixel-border">
-        <div className="flex-1 overflow-auto bg-zinc-950 p-3 font-mono text-xs leading-relaxed">
+        <div className="flex-1 overflow-auto p-3 font-mono text-xs leading-relaxed relative" style={{ backgroundColor: "oklch(0.12 0.015 40)" }}>
+          {/* Scanline overlay for CRT feel */}
+          <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{
+            background: "repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(255,255,255,0.08) 1px, rgba(255,255,255,0.08) 2px)"
+          }} />
           {filteredLogs.map((log) => (
-            <div key={log.id} className="flex gap-3">
-              <span className="text-amber-700/60 shrink-0">{log.time}</span>
+            <div key={log.id} className="flex gap-3 relative z-10">
+              <span className="shrink-0" style={{ color: "oklch(0.55 0.08 55 / 0.6)" }}>{log.time}</span>
               <span className={cn("shrink-0 uppercase w-12", levelColors[log.level])}>
                 [{log.level}]
               </span>
-              <span className="text-amber-100/80">{log.message}</span>
+              <span style={{ color: "oklch(0.90 0.03 75 / 0.8)" }}>{log.message}</span>
             </div>
           ))}
           <div ref={logEndRef} />

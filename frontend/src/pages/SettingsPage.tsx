@@ -13,12 +13,20 @@ export function SettingsPage() {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-lg font-semibold mb-6">Settings</h1>
+      <div className="flex items-center gap-3 mb-6">
+        <h1 className="text-lg font-semibold">Settings</h1>
+        <span className="text-[10px] font-mono text-muted-foreground/40 tracking-wider uppercase">// configuration</span>
+      </div>
 
       <section className="mb-8">
-        <h2 className="text-sm font-semibold mb-1">General</h2>
-        <p className="text-xs text-muted-foreground mb-4">Basic workspace configuration</p>
-        <div className="bg-card p-4 space-y-4 pixel-border">
+        <div className="flex items-center gap-2 mb-1">
+          <h2 className="text-sm font-semibold">General</h2>
+          <div className="flex-1 h-px bg-gradient-to-r from-border to-transparent" />
+        </div>
+        <p className="text-xs text-muted-foreground mb-4 font-mono">Basic workspace configuration</p>
+        <div className="bg-card p-4 space-y-4 pixel-border relative">
+          <div className="absolute top-0 left-0 w-[6px] h-[6px] border-t-2 border-l-2 border-primary/30" />
+          <div className="absolute bottom-0 right-0 w-[6px] h-[6px] border-b-2 border-r-2 border-primary/30" />
           <div>
             <label className="block text-sm font-medium mb-1.5">Workspace Name</label>
             <input
@@ -39,9 +47,14 @@ export function SettingsPage() {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-sm font-semibold mb-1">Appearance</h2>
-        <p className="text-xs text-muted-foreground mb-4">Customize how AutoAI looks</p>
-        <div className="bg-card p-4 pixel-border">
+        <div className="flex items-center gap-2 mb-1">
+          <h2 className="text-sm font-semibold">Appearance</h2>
+          <div className="flex-1 h-px bg-gradient-to-r from-border to-transparent" />
+        </div>
+        <p className="text-xs text-muted-foreground mb-4 font-mono">Customize how AutoAI looks</p>
+        <div className="bg-card p-4 pixel-border relative">
+          <div className="absolute top-0 left-0 w-[6px] h-[6px] border-t-2 border-l-2 border-primary/30" />
+          <div className="absolute bottom-0 right-0 w-[6px] h-[6px] border-b-2 border-r-2 border-primary/30" />
           <label className="block text-sm font-medium mb-3">Theme</label>
           <div className="flex gap-2">
             {themeOptions.map(({ value, label, icon: Icon }) => (
@@ -64,9 +77,14 @@ export function SettingsPage() {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-sm font-semibold mb-1">Runtime</h2>
-        <p className="text-xs text-muted-foreground mb-4">Agent runtime configuration</p>
-        <div className="bg-card p-4 space-y-4 pixel-border">
+        <div className="flex items-center gap-2 mb-1">
+          <h2 className="text-sm font-semibold">Runtime</h2>
+          <div className="flex-1 h-px bg-gradient-to-r from-border to-transparent" />
+        </div>
+        <p className="text-xs text-muted-foreground mb-4 font-mono">Agent runtime configuration</p>
+        <div className="bg-card p-4 space-y-4 pixel-border relative">
+          <div className="absolute top-0 left-0 w-[6px] h-[6px] border-t-2 border-l-2 border-primary/30" />
+          <div className="absolute bottom-0 right-0 w-[6px] h-[6px] border-b-2 border-r-2 border-primary/30" />
           <div>
             <label className="block text-sm font-medium mb-1.5">Max Concurrent Agents</label>
             <input
