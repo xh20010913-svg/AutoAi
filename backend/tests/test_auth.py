@@ -1,59 +1,17 @@
 import pytest
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from httpx import AsyncClient
+from jose import jwt
 
-from app.api import api_router
-from app.database import get_session
-from app.models.project import Base
-from app.models.user import User  # noqa: F401
-
-engine = create_async_engine("sqlite+aiosqlite:///:memory:")
-TestingSession = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+from app.config import settings
+from tests.conftest import get_auth_headers, login_user, register_user
 
 
-@pytest.fixture(autouse=True)
-async def setup_db():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-
-
-@pytest.fixture
-async def client():
-    from fastapi import FastAPI
-
-    test_app = FastAPI()
-
-    async def override_get_session():
-        async with TestingSession() as session:
-            yield session
-
-    test_app.include_router(api_router)
-    test_app.dependency_overrides[get_session] = override_get_session
-
-    async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as c:
-        yield c
-
-
-async def _register(client: AsyncClient, **overrides):
-    payload = {
-        "username": "testuser",
-        "email": "test@example.com",
-        "password": "secret123",
-        **overrides,
-    }
-    return await client.post("/api/v1/auth/register", json=payload)
-
-
-async def _login(client: AsyncClient, username="testuser", password="secret123"):
-    return await client.post("/api/v1/auth/login", json={"username": username, "password": password})
+# ── Register ──────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
 async def test_register_success(client: AsyncClient):
-    resp = await _register(client)
+    resp = await register_user(client)
     assert resp.status_code == 201
     data = resp.json()
     assert data["username"] == "testuser"
@@ -63,17 +21,40 @@ async def test_register_success(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_register_duplicate(client: AsyncClient):
-    await _register(client)
-    resp = await _register(client)
+async def test_register_duplicate_username(client: AsyncClient):
+    await register_user(client)
+    resp = await register_user(client, email="other@example.com")
     assert resp.status_code == 400
     assert "already taken" in resp.json()["detail"]
 
 
 @pytest.mark.asyncio
+async def test_register_duplicate_email(client: AsyncClient):
+    await register_user(client)
+    resp = await register_user(client, username="otheruser")
+    assert resp.status_code == 400
+    assert "already taken" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_register_missing_fields(client: AsyncClient):
+    resp = await client.post("/api/v1/auth/register", json={"username": "x"})
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_register_invalid_email(client: AsyncClient):
+    resp = await register_user(client, email="not-an-email")
+    assert resp.status_code == 422
+
+
+# ── Login ─────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
 async def test_login_success(client: AsyncClient):
-    await _register(client)
-    resp = await _login(client)
+    await register_user(client)
+    resp = await login_user(client)
     assert resp.status_code == 200
     data = resp.json()
     assert "access_token" in data
@@ -82,17 +63,30 @@ async def test_login_success(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_login_wrong_password(client: AsyncClient):
-    await _register(client)
-    resp = await _login(client, password="wrong")
+    await register_user(client)
+    resp = await login_user(client, password="wrong")
     assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
+async def test_login_nonexistent_user(client: AsyncClient):
+    resp = await login_user(client, username="nobody")
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_login_missing_fields(client: AsyncClient):
+    resp = await client.post("/api/v1/auth/login", json={"username": "x"})
+    assert resp.status_code == 422
+
+
+# ── Me ────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
 async def test_me_authenticated(client: AsyncClient):
-    await _register(client)
-    login_resp = await _login(client)
-    token = login_resp.json()["access_token"]
-    resp = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
+    headers = await get_auth_headers(client)
+    resp = await client.get("/api/v1/auth/me", headers=headers)
     assert resp.status_code == 200
     assert resp.json()["username"] == "testuser"
 
@@ -100,4 +94,27 @@ async def test_me_authenticated(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_me_no_token(client: AsyncClient):
     resp = await client.get("/api/v1/auth/me")
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_me_invalid_token(client: AsyncClient):
+    resp = await client.get("/api/v1/auth/me", headers={"Authorization": "Bearer invalid"})
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_me_token_no_sub(client: AsyncClient):
+    """Valid JWT with missing 'sub' claim — covers auth.py line 41."""
+    token = jwt.encode({"exp": 9999999999}, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+    resp = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_me_user_not_found(client: AsyncClient):
+    """Valid JWT with sub pointing to non-existent user — covers auth.py line 47."""
+    token = jwt.encode({"sub": "nonexistent-user-id", "exp": 9999999999},
+                        settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+    resp = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 401
