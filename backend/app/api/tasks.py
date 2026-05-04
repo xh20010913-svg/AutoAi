@@ -1,3 +1,5 @@
+from typing import List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,9 +17,9 @@ from app.schemas.task import (
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
-@router.get("", response_model=list[TaskResponse])
+@router.get("", response_model=List[TaskResponse])
 async def list_tasks(
-    status: str | None = Query(None),
+    status: Optional[str] = Query(None),
     session: AsyncSession = Depends(get_session),
 ):
     stmt = select(Task)
@@ -96,7 +98,7 @@ async def update_task_status(
     return task
 
 
-@router.post("/reorder", response_model=list[TaskResponse])
+@router.post("/reorder", response_model=List[TaskResponse])
 async def reorder_tasks(
     body: TaskReorder,
     session: AsyncSession = Depends(get_session),

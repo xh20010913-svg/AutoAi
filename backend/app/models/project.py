@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 from uuid import uuid4
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
@@ -32,7 +33,16 @@ class Task(Base):
     status: Mapped[str] = mapped_column(String, default="todo")
     priority: Mapped[str] = mapped_column(String, default="medium")
     assignee: Mapped[str] = mapped_column(String, default="")
-    project_id: Mapped[str | None] = mapped_column(String, ForeignKey("projects.id"), nullable=True)
+    project_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("projects.id"), nullable=True)
     position: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AgentTask(Base):
+    __tablename__ = "agent_tasks"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid4()))
+    agent_id: Mapped[int] = mapped_column(ForeignKey("agents.id"), nullable=False)
+    task_id: Mapped[str] = mapped_column(String, ForeignKey("tasks.id"), nullable=False)
+    assigned_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

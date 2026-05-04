@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import api_router
 from app.database import engine
-from app.models.project import Base
+from app.models.project import AgentTask, Base  # noqa: F401 — ensure tables are created
 from app.models.user import User  # noqa: F401 — ensure users table is created
 
 
