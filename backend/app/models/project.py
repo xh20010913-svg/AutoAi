@@ -1,12 +1,21 @@
 from datetime import datetime
+from typing import Optional
 from uuid import uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Table, Text
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
     pass
+
+
+task_dependencies = Table(
+    "task_dependencies",
+    Base.metadata,
+    Column("task_id", String, ForeignKey("tasks.id", ondelete="CASCADE"), primary_key=True),
+    Column("depends_on_id", String, ForeignKey("tasks.id", ondelete="CASCADE"), primary_key=True),
+)
 
 
 class Project(Base):
@@ -32,7 +41,24 @@ class Task(Base):
     status: Mapped[str] = mapped_column(String, default="todo")
     priority: Mapped[str] = mapped_column(String, default="medium")
     assignee: Mapped[str] = mapped_column(String, default="")
-    project_id: Mapped[str | None] = mapped_column(String, ForeignKey("projects.id"), nullable=True)
+    project_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("projects.id"), nullable=True)
     position: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    depends_on: Mapped[list["Task"]] = relationship(
+        "Task",
+        secondary=task_dependencies,
+        primaryjoin=id == task_dependencies.c.task_id,
+        secondaryjoin=id == task_dependencies.c.depends_on_id,
+        lazy="selectin",
+    )
+    depended_by: Mapped[list["Task"]] = relationship(
+        "Task",
+        secondary=task_dependencies,
+        primaryjoin=id == task_dependencies.c.depends_on_id,
+        secondaryjoin=id == task_dependencies.c.task_id,
+        lazy="selectin",
+        overlaps="depends_on",
+        viewonly=True,
+    )

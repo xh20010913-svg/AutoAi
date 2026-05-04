@@ -9,18 +9,21 @@ export interface Task {
   description: string
   status: TaskStatus
   priority: TaskPriority
-  assignee_id: string | null
-  parent_id: string | null
+  assignee: string
+  project_id: string | null
   position: number
   created_at: string
   updated_at: string
+  depends_on_ids: string[]
+  depended_by_ids: string[]
 }
 
 export interface TaskCreate {
   title: string
   description?: string
   priority?: TaskPriority
-  assignee_id?: string
+  assignee?: string
+  depends_on_ids?: string[]
 }
 
 export interface TaskUpdate {
@@ -28,16 +31,24 @@ export interface TaskUpdate {
   description?: string
   status?: TaskStatus
   priority?: TaskPriority
-  assignee_id?: string
+  assignee?: string
   position?: number
 }
 
-export interface Project {
+export interface GraphNode {
   id: string
-  name: string
-  description: string
-  created_at: string
-  updated_at: string
+  title: string
+  status: string
+}
+
+export interface GraphEdge {
+  source: string
+  target: string
+}
+
+export interface DependencyGraph {
+  nodes: GraphNode[]
+  edges: GraphEdge[]
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -57,30 +68,50 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  projects: {
-    list: () => request<{ projects: Project[]; total: number }>("/projects"),
-  },
-
   tasks: {
-    list: (projectId: string, status?: string) =>
-      request<{ tasks: Task[]; total: number }>(
-        `/projects/${projectId}/tasks${status ? `?status=${encodeURIComponent(status)}` : ""}`,
-      ),
+    list: (status?: string) =>
+      request<Task[]>(`/tasks${status ? `?status=${encodeURIComponent(status)}` : ""}`),
 
-    create: (projectId: string, data: TaskCreate) =>
-      request<Task>(`/projects/${projectId}/tasks`, {
+    create: (data: TaskCreate) =>
+      request<Task>("/tasks", {
         method: "POST",
         body: JSON.stringify(data),
       }),
 
-    update: (projectId: string, taskId: string, data: TaskUpdate) =>
-      request<Task>(`/projects/${projectId}/tasks/${taskId}`, {
-        method: "PATCH",
+    get: (taskId: string) => request<Task>(`/tasks/${taskId}`),
+
+    update: (taskId: string, data: TaskUpdate) =>
+      request<Task>(`/tasks/${taskId}`, {
+        method: "PUT",
         body: JSON.stringify(data),
       }),
 
-    delete: (projectId: string, taskId: string) =>
-      request<void>(`/projects/${projectId}/tasks/${taskId}`, {
+    delete: (taskId: string) =>
+      request<void>(`/tasks/${taskId}`, { method: "DELETE" }),
+
+    updateStatus: (taskId: string, status: TaskStatus, position?: number) =>
+      request<Task>(`/tasks/${taskId}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status, position }),
+      }),
+
+    reorder: (taskIds: string[]) =>
+      request<Task[]>("/tasks/reorder", {
+        method: "POST",
+        body: JSON.stringify({ task_ids: taskIds }),
+      }),
+
+    // Dependency operations
+    dependencyGraph: () => request<DependencyGraph>("/tasks/dependency-graph"),
+
+    addDependency: (taskId: string, dependsOnId: string) =>
+      request<Task>(`/tasks/${taskId}/dependencies`, {
+        method: "POST",
+        body: JSON.stringify({ depends_on_id: dependsOnId }),
+      }),
+
+    removeDependency: (taskId: string, dependsOnId: string) =>
+      request<Task>(`/tasks/${taskId}/dependencies/${dependsOnId}`, {
         method: "DELETE",
       }),
   },

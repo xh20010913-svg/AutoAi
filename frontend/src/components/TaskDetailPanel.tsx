@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from "react"
-import { X, Trash2 } from "lucide-react"
+import { X, Trash2, Plus, Link, Unlink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -15,7 +15,7 @@ import { api, type Task, type TaskStatus, type TaskPriority } from "@/lib/api"
 
 interface TaskDetailPanelProps {
   task: Task
-  projectId: string
+  allTasks: Task[]
   onClose: () => void
   onUpdated: (task: Task) => void
   onDeleted: (taskId: string) => void
@@ -36,22 +36,26 @@ const PRIORITIES: { value: TaskPriority; label: string }[] = [
   { value: "none", label: "None" },
 ]
 
-export function TaskDetailPanel({ task, projectId, onClose, onUpdated, onDeleted }: TaskDetailPanelProps) {
+export function TaskDetailPanel({ task, allTasks, onClose, onUpdated, onDeleted }: TaskDetailPanelProps) {
   const [title, setTitle] = useState(task.title)
   const [description, setDescription] = useState(task.description)
   const [status, setStatus] = useState<TaskStatus>(task.status)
   const [priority, setPriority] = useState<TaskPriority>(task.priority)
-  const [assignee, setAssignee] = useState(task.assignee_id ?? "")
+  const [assignee, setAssignee] = useState(task.assignee ?? "")
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [depId, setDepId] = useState("")
+  const [depError, setDepError] = useState<string | null>(null)
 
   useEffect(() => {
     setTitle(task.title)
     setDescription(task.description)
     setStatus(task.status)
     setPriority(task.priority)
-    setAssignee(task.assignee_id ?? "")
+    setAssignee(task.assignee ?? "")
     setConfirmDelete(false)
+    setDepId("")
+    setDepError(null)
   }, [task])
 
   async function handleSave(e: FormEvent) {
@@ -59,12 +63,12 @@ export function TaskDetailPanel({ task, projectId, onClose, onUpdated, onDeleted
     if (!title.trim()) return
     setSaving(true)
     try {
-      const updated = await api.tasks.update(projectId, task.id, {
+      const updated = await api.tasks.update(task.id, {
         title: title.trim(),
         description: description.trim(),
         status,
         priority,
-        assignee_id: assignee.trim() || undefined,
+        assignee: assignee.trim() || undefined,
       })
       onUpdated(updated)
     } catch (err) {
@@ -80,12 +84,40 @@ export function TaskDetailPanel({ task, projectId, onClose, onUpdated, onDeleted
       return
     }
     try {
-      await api.tasks.delete(projectId, task.id)
+      await api.tasks.delete(task.id)
       onDeleted(task.id)
     } catch (err) {
       console.error("Failed to delete task:", err)
     }
   }
+
+  async function handleAddDependency() {
+    if (!depId.trim()) return
+    setDepError(null)
+    try {
+      const updated = await api.tasks.addDependency(task.id, depId.trim())
+      onUpdated(updated)
+      setDepId("")
+    } catch (err) {
+      setDepError(err instanceof Error ? err.message : "Failed to add dependency")
+    }
+  }
+
+  async function handleRemoveDependency(dependsOnId: string) {
+    try {
+      const updated = await api.tasks.removeDependency(task.id, dependsOnId)
+      onUpdated(updated)
+    } catch (err) {
+      console.error("Failed to remove dependency:", err)
+    }
+  }
+
+  const dependsOnTasks = allTasks.filter((t) => task.depends_on_ids.includes(t.id))
+  const dependedByTasks = allTasks.filter((t) => task.depended_by_ids.includes(t.id))
+  // Tasks that can be added as dependencies (not self, not already a dependency)
+  const availableTasks = allTasks.filter(
+    (t) => t.id !== task.id && !task.depends_on_ids.includes(t.id)
+  )
 
   return (
     <div
@@ -165,6 +197,92 @@ export function TaskDetailPanel({ task, projectId, onClose, onUpdated, onDeleted
           />
         </div>
 
+        {/* Dependencies section */}
+        <div className="border-t-2 border-border pt-3">
+          <Label className="text-xs text-muted-foreground uppercase tracking-wider">Dependencies</Label>
+
+          {/* Depends on */}
+          <div className="mt-2">
+            <span className="text-[11px] text-muted-foreground">Depends on:</span>
+            {dependsOnTasks.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic mt-0.5">None</p>
+            ) : (
+              <ul className="mt-1 space-y-1">
+                {dependsOnTasks.map((dep) => (
+                  <li key={dep.id} className="flex items-center justify-between text-xs bg-muted/30 px-2 py-1 border border-border">
+                    <span className="truncate">
+                      <span className={cn(
+                        "inline-block w-2 h-2 mr-1.5",
+                        dep.status === "done" ? "bg-emerald-500" :
+                        dep.status === "in_progress" ? "bg-amber-500" :
+                        "bg-zinc-400"
+                      )} />
+                      {dep.title}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveDependency(dep.id)}
+                      className="text-muted-foreground hover:text-destructive ml-2"
+                    >
+                      <Unlink className="h-3 w-3" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Depended by */}
+          {dependedByTasks.length > 0 && (
+            <div className="mt-2">
+              <span className="text-[11px] text-muted-foreground">Depended by:</span>
+              <ul className="mt-1 space-y-1">
+                {dependedByTasks.map((dep) => (
+                  <li key={dep.id} className="text-xs bg-muted/30 px-2 py-1 border border-border flex items-center">
+                    <span className={cn(
+                      "inline-block w-2 h-2 mr-1.5",
+                      dep.status === "done" ? "bg-emerald-500" :
+                      dep.status === "blocked" ? "bg-red-500" :
+                      "bg-zinc-400"
+                    )} />
+                    {dep.title}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Add dependency */}
+          {availableTasks.length > 0 && (
+            <div className="mt-3 flex gap-1.5">
+              <select
+                value={depId}
+                onChange={(e) => setDepId(e.target.value)}
+                className="flex-1 text-xs bg-background border border-border px-2 py-1.5 text-foreground"
+              >
+                <option value="">Add dependency...</option>
+                {availableTasks.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.title}
+                  </option>
+                ))}
+              </select>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleAddDependency}
+                disabled={!depId.trim()}
+              >
+                <Link className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
+          {depError && (
+            <p className="text-xs text-destructive mt-1">{depError}</p>
+          )}
+        </div>
+
         <div className="mt-auto flex items-center gap-2 border-t-2 border-border pt-4">
           <Button type="submit" disabled={saving || !title.trim()}>
             {saving ? "Saving..." : "Save"}
@@ -185,4 +303,8 @@ export function TaskDetailPanel({ task, projectId, onClose, onUpdated, onDeleted
       </form>
     </div>
   )
+}
+
+function cn(...args: (string | undefined | false | null)[]) {
+  return args.filter(Boolean).join(" ")
 }

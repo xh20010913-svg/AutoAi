@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type CSSProperties } from "react"
+import { useState, useEffect, useCallback, useRef, type CSSProperties } from "react"
 import {
   DndContext,
   DragOverlay,
@@ -19,7 +19,7 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { GripVertical } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { api, type Task, type TaskStatus } from "@/lib/api"
+import { api, type Task, type TaskStatus, type GraphEdge } from "@/lib/api"
 import { CreateTaskDialog } from "@/components/CreateTaskDialog"
 import { TaskDetailPanel } from "@/components/TaskDetailPanel"
 
@@ -70,6 +70,7 @@ function SortableTaskCard({
     <div
       ref={setNodeRef}
       style={style}
+      data-task-id={task.id}
       className="group bg-card p-3 transition-colors hover:border-primary pixel-border-sm"
     >
       <div className="flex items-start justify-between">
@@ -101,9 +102,9 @@ function SortableTaskCard({
         >
           {task.priority}
         </span>
-        {task.assignee_id && (
+        {task.assignee && (
           <span className="text-xs text-muted-foreground truncate max-w-[100px]">
-            {task.assignee_id}
+            {task.assignee}
           </span>
         )}
       </div>
@@ -137,6 +138,7 @@ function DroppableColumn({
       >
         <div
           ref={setNodeRef}
+          data-column-id={column.id}
           className="flex flex-col gap-2 p-2 flex-1 min-h-[80px]"
         >
           {tasks.map((task) => (
@@ -175,9 +177,80 @@ function TaskCardOverlay({ task }: { task: Task }) {
   )
 }
 
+function DependencyArrows({
+  edges,
+  tasks,
+}: {
+  edges: GraphEdge[]
+  tasks: Task[]
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [, forceUpdate] = useState(0)
+
+  useEffect(() => {
+    const handle = setInterval(() => forceUpdate((n) => n + 1), 500)
+    return () => clearInterval(handle)
+  }, [])
+
+  const arrows: { x1: number; y1: number; x2: number; y2: number; source: string; target: string }[] = []
+
+  if (!containerRef.current) {
+    return (
+      <div ref={containerRef} className="absolute inset-0 pointer-events-none overflow-hidden">
+        <svg className="absolute inset-0 w-full h-full" style={{ zIndex: 5 }} />
+      </div>
+    )
+  }
+
+  const containerRect = containerRef.current.getBoundingClientRect()
+
+  for (const edge of edges) {
+    const sourceEl = document.querySelector(`[data-task-id="${edge.source}"]`) as HTMLElement | null
+    const targetEl = document.querySelector(`[data-task-id="${edge.target}"]`) as HTMLElement | null
+    if (!sourceEl || !targetEl) continue
+
+    const sourceRect = sourceEl.getBoundingClientRect()
+    const targetRect = targetEl.getBoundingClientRect()
+
+    arrows.push({
+      x1: sourceRect.right - containerRect.left,
+      y1: sourceRect.top + sourceRect.height / 2 - containerRect.top,
+      x2: targetRect.left - containerRect.left,
+      y2: targetRect.top + targetRect.height / 2 - containerRect.top,
+      source: edge.source,
+      target: edge.target,
+    })
+  }
+
+  return (
+    <div ref={containerRef} className="absolute inset-0 pointer-events-none overflow-hidden">
+      <svg className="absolute inset-0 w-full h-full" style={{ zIndex: 5 }}>
+        <defs>
+          <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#a1a1aa" />
+          </marker>
+        </defs>
+        {arrows.map((a) => (
+          <line
+            key={`${a.source}-${a.target}`}
+            x1={a.x1}
+            y1={a.y1}
+            x2={a.x2 - 4}
+            y2={a.y2}
+            stroke="#a1a1aa"
+            strokeWidth={1.5}
+            strokeDasharray="5,3"
+            markerEnd="url(#arrowhead)"
+          />
+        ))}
+      </svg>
+    </div>
+  )
+}
+
 export function BoardPage() {
-  const [projectId, setProjectId] = useState<string | null>(null)
   const [tasks, setTasks] = useState<Task[]>([])
+  const [edges, setEdges] = useState<GraphEdge[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
@@ -187,41 +260,27 @@ export function BoardPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   )
 
-  const loadProject = useCallback(async () => {
+  const loadData = useCallback(async () => {
     try {
-      const { projects } = await api.projects.list()
-      if (projects.length === 0) {
-        setError("No projects found. Create a project first.")
-        return null
-      }
-      return projects[0].id
+      const [taskList, graph] = await Promise.all([
+        api.tasks.list(),
+        api.tasks.dependencyGraph(),
+      ])
+      setTasks(taskList)
+      setEdges(graph.edges)
     } catch (err) {
-      setError(`Failed to load projects: ${err instanceof Error ? err.message : "Unknown error"}`)
-      return null
-    }
-  }, [])
-
-  const loadTasks = useCallback(async (pid: string) => {
-    try {
-      const { tasks: data } = await api.tasks.list(pid)
-      setTasks(data)
-    } catch (err) {
-      setError(`Failed to load tasks: ${err instanceof Error ? err.message : "Unknown error"}`)
+      setError(`Failed to load: ${err instanceof Error ? err.message : "Unknown error"}`)
     }
   }, [])
 
   useEffect(() => {
     async function init() {
       setLoading(true)
-      const pid = await loadProject()
-      if (pid) {
-        setProjectId(pid)
-        await loadTasks(pid)
-      }
+      await loadData()
       setLoading(false)
     }
     init()
-  }, [loadProject, loadTasks])
+  }, [loadData])
 
   const getColumnTasks = (status: TaskStatus) =>
     tasks
@@ -266,7 +325,7 @@ export function BoardPage() {
     const { active, over } = event
     setActiveId(null)
 
-    if (!over || !projectId) return
+    if (!over) return
 
     const activeId = active.id as string
     const overId = over.id as string
@@ -294,10 +353,7 @@ export function BoardPage() {
     if (!statusChanged && !positionChanged) return
 
     try {
-      const updated = await api.tasks.update(projectId, activeId, {
-        status: statusChanged ? targetStatus : undefined,
-        position: targetPosition,
-      })
+      const updated = await api.tasks.updateStatus(activeId, targetStatus, targetPosition)
       setTasks((prev) =>
         prev.map((t) => (t.id === activeId ? updated : t)),
       )
@@ -305,8 +361,8 @@ export function BoardPage() {
         setSelectedTask(updated)
       }
     } catch (err) {
-      console.error("Failed to update task position:", err)
-      await loadTasks(projectId)
+      console.error("Failed to update task:", err)
+      await loadData()
     }
   }
 
@@ -317,6 +373,8 @@ export function BoardPage() {
   function handleTaskUpdated(task: Task) {
     setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
     setSelectedTask(task)
+    // Refresh graph edges too
+    api.tasks.dependencyGraph().then((g) => setEdges(g.edges))
   }
 
   function handleTaskDeleted(taskId: string) {
@@ -346,11 +404,9 @@ export function BoardPage() {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-lg font-semibold">Board</h1>
-        {projectId && (
-          <CreateTaskDialog projectId={projectId} onCreated={handleTaskCreated} />
-        )}
+        <CreateTaskDialog onCreated={handleTaskCreated} />
       </div>
-      <div className="flex-1 overflow-x-auto">
+      <div className="flex-1 overflow-x-auto relative">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}
@@ -358,7 +414,7 @@ export function BoardPage() {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex gap-4 pb-4" style={{ minWidth: "max-content" }}>
+          <div className="flex gap-4 pb-4 relative" style={{ minWidth: "max-content" }}>
             {COLUMNS.map((col) => (
               <DroppableColumn
                 key={col.id}
@@ -367,6 +423,7 @@ export function BoardPage() {
                 onTaskClick={setSelectedTask}
               />
             ))}
+            <DependencyArrows edges={edges} tasks={tasks} />
           </div>
           <DragOverlay>
             {activeTask ? <TaskCardOverlay task={activeTask} /> : null}
@@ -374,10 +431,10 @@ export function BoardPage() {
         </DndContext>
       </div>
 
-      {selectedTask && projectId && (
+      {selectedTask && (
         <TaskDetailPanel
           task={selectedTask}
-          projectId={projectId}
+          allTasks={tasks}
           onClose={() => setSelectedTask(null)}
           onUpdated={handleTaskUpdated}
           onDeleted={handleTaskDeleted}

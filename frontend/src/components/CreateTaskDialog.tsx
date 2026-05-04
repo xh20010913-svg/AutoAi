@@ -21,7 +21,6 @@ import { api, type Task, type TaskPriority } from "@/lib/api"
 import { Plus } from "lucide-react"
 
 interface CreateTaskDialogProps {
-  projectId: string
   onCreated: (task: Task) => void
 }
 
@@ -32,7 +31,7 @@ const PRIORITIES: { value: TaskPriority; label: string }[] = [
   { value: "none", label: "None" },
 ]
 
-export function CreateTaskDialog({ projectId, onCreated }: CreateTaskDialogProps) {
+export function CreateTaskDialog({ onCreated }: CreateTaskDialogProps) {
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -45,11 +44,11 @@ export function CreateTaskDialog({ projectId, onCreated }: CreateTaskDialogProps
     if (!title.trim()) return
     setCreating(true)
     try {
-      const task = await api.tasks.create(projectId, {
+      const task = await api.tasks.create({
         title: title.trim(),
         description: description.trim() || undefined,
         priority,
-        assignee_id: assignee.trim() || undefined,
+        assignee: assignee.trim() || undefined,
       })
       onCreated(task)
       setTitle("")
