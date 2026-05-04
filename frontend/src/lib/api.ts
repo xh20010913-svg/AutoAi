@@ -1,4 +1,37 @@
+import axios from "axios"
+import { getToken } from "@/context/auth-context"
+
 const API_BASE = "http://localhost:18765/api/v1"
+
+export const axiosInstance = axios.create({
+  baseURL: API_BASE,
+  headers: { "Content-Type": "application/json" },
+})
+
+// Request interceptor — attach JWT token to every request
+axiosInstance.interceptors.request.use((config) => {
+  const token = getToken()
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+// Response interceptor — handle 401 by clearing token and redirecting to login
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem("auth_token")
+      if (window.location.pathname !== "/login" && window.location.pathname !== "/register") {
+        window.location.href = "/login"
+      }
+    }
+    return Promise.reject(error)
+  },
+)
+
+// --- Types ---
 
 export type TaskStatus = "todo" | "in_progress" | "in_review" | "done" | "blocked"
 export type TaskPriority = "high" | "medium" | "low" | "none"
@@ -40,48 +73,27 @@ export interface Project {
   updated_at: string
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
-  })
-  if (!res.ok) {
-    const body = await res.text()
-    throw new Error(`API ${res.status}: ${body}`)
-  }
-  if (res.status === 204) return undefined as T
-  return res.json() as Promise<T>
-}
-
 export const api = {
   projects: {
-    list: () => request<{ projects: Project[]; total: number }>("/projects"),
+    list: () =>
+      axiosInstance.get<{ projects: Project[]; total: number }>("/projects").then((r) => r.data),
   },
 
   tasks: {
     list: (projectId: string, status?: string) =>
-      request<{ tasks: Task[]; total: number }>(
-        `/projects/${projectId}/tasks${status ? `?status=${encodeURIComponent(status)}` : ""}`,
-      ),
+      axiosInstance
+        .get<{ tasks: Task[]; total: number }>(`/projects/${projectId}/tasks`, {
+          params: status ? { status } : undefined,
+        })
+        .then((r) => r.data),
 
     create: (projectId: string, data: TaskCreate) =>
-      request<Task>(`/projects/${projectId}/tasks`, {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
+      axiosInstance.post<Task>(`/projects/${projectId}/tasks`, data).then((r) => r.data),
 
     update: (projectId: string, taskId: string, data: TaskUpdate) =>
-      request<Task>(`/projects/${projectId}/tasks/${taskId}`, {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      }),
+      axiosInstance.patch<Task>(`/projects/${projectId}/tasks/${taskId}`, data).then((r) => r.data),
 
     delete: (projectId: string, taskId: string) =>
-      request<void>(`/projects/${projectId}/tasks/${taskId}`, {
-        method: "DELETE",
-      }),
+      axiosInstance.delete(`/projects/${projectId}/tasks/${taskId}`).then(() => undefined),
   },
 }

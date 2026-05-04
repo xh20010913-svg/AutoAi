@@ -1,8 +1,17 @@
-import { Moon, Sun, Monitor, Play, Zap } from "lucide-react"
+import { Moon, Sun, Monitor, Play, Zap, LogOut } from "lucide-react"
 import { useTheme } from "@/context/theme-context"
+import { useAuth } from "@/context/auth-context"
+import { useNavigate } from "react-router-dom"
 
 export function Topbar() {
   const { theme, setTheme, resolvedTheme } = useTheme()
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    logout()
+    navigate("/login")
+  }
 
   const cycleTheme = () => {
     const order: Array<"light" | "dark" | "system"> = ["light", "dark", "system"]
@@ -34,6 +43,19 @@ export function Topbar() {
         >
           <ThemeIcon className="h-4 w-4" />
         </button>
+        {user && (
+          <>
+            <div className="h-4 w-px bg-border" />
+            <span className="text-[11px] text-muted-foreground font-mono">{user.username}</span>
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center justify-center p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors border-2 border-transparent hover:border-border"
+              title="Logout"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </>
+        )}
       </div>
     </header>
   )
