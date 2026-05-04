@@ -96,6 +96,16 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+@keyframes slideInFromRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slideOutToRight {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+
 @layer base {
   * {
     @apply border-border;
