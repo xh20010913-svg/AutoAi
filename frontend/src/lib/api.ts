@@ -40,6 +40,35 @@ export interface Project {
   updated_at: string
 }
 
+export type RunStatus = "running" | "succeeded" | "failed" | "stopped"
+
+export interface Agent {
+  id: string
+  name: string
+  role: string
+  model: string
+  status: string
+}
+
+export interface Run {
+  id: string
+  agent_id: string
+  agent_name: string
+  task_id: string | null
+  task_title: string | null
+  command: string | null
+  status: RunStatus
+  started_at: string
+  finished_at: string | null
+  duration_ms: number | null
+}
+
+export interface RunCreate {
+  agent_id: string
+  task_id?: string
+  command?: string
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -82,6 +111,26 @@ export const api = {
     delete: (projectId: string, taskId: string) =>
       request<void>(`/projects/${projectId}/tasks/${taskId}`, {
         method: "DELETE",
+      }),
+  },
+
+  agents: {
+    list: () => request<{ agents: Agent[] }>("/agents"),
+  },
+
+  runs: {
+    list: (agentId?: string) =>
+      request<{ runs: Run[] }>(
+        `/runs${agentId ? `?agent_id=${encodeURIComponent(agentId)}` : ""}`,
+      ),
+    create: (data: RunCreate) =>
+      request<Run>("/runs", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    stop: (runId: string) =>
+      request<Run>(`/runs/${runId}/stop`, {
+        method: "POST",
       }),
   },
 }
