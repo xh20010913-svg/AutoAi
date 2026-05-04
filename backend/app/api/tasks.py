@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.activity import log_activity
 from app.database import get_session
 from app.models.project import Task
 from app.schemas.task import (
@@ -35,6 +36,13 @@ async def create_task(
 ):
     task = Task(**body.model_dump())
     session.add(task)
+    await log_activity(
+        session,
+        action="task_created",
+        resource_type="task",
+        resource_id=task.id,
+        detail={"title": task.title},
+    )
     await session.commit()
     await session.refresh(task)
     return task
@@ -62,6 +70,13 @@ async def update_task(
         raise HTTPException(status_code=404, detail="Task not found")
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(task, field, value)
+    await log_activity(
+        session,
+        action="task_updated",
+        resource_type="task",
+        resource_id=task_id,
+        detail={"title": task.title},
+    )
     await session.commit()
     await session.refresh(task)
     return task
@@ -75,6 +90,13 @@ async def delete_task(
     task = await session.get(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    await log_activity(
+        session,
+        action="task_deleted",
+        resource_type="task",
+        resource_id=task_id,
+        detail={"title": task.title},
+    )
     await session.delete(task)
     await session.commit()
 
@@ -91,6 +113,13 @@ async def update_task_status(
     task.status = body.status
     if body.position is not None:
         task.position = body.position
+    await log_activity(
+        session,
+        action="task_updated",
+        resource_type="task",
+        resource_id=task_id,
+        detail={"title": task.title, "status": task.status},
+    )
     await session.commit()
     await session.refresh(task)
     return task
