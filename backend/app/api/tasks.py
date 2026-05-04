@@ -1,10 +1,16 @@
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_session
+from app.dispatcher import Dispatcher
 from app.models.project import Task
 from app.schemas.task import (
+    DispatchRequest,
+    DispatchResponse,
+    DispatchResult,
     TaskCreate,
     TaskReorder,
     TaskResponse,
@@ -94,6 +100,39 @@ async def update_task_status(
     await session.commit()
     await session.refresh(task)
     return task
+
+
+_DEFAULT_GRAPH_DIR = Path(".autoai")
+
+
+@router.post("/dispatch", response_model=DispatchResponse)
+async def dispatch_tasks(body: DispatchRequest | None = None):
+    body = body or DispatchRequest()
+    graph_dir = _DEFAULT_GRAPH_DIR
+    dispatcher = Dispatcher(
+        task_graph_path=graph_dir / "task_graph.json",
+        roles_path=graph_dir / "roles.json",
+    )
+    dispatcher.load()
+
+    if body.mode == "single":
+        result = dispatcher.dispatch_one(role=body.role)
+        results = [result] if result else []
+    elif body.mode == "batch":
+        results = dispatcher.dispatch_batch(max_count=body.max_count)
+    elif body.mode == "by_role":
+        if not body.role:
+            raise HTTPException(status_code=400, detail="role is required for by_role mode")
+        results = dispatcher.dispatch_by_role(body.role)
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown mode: {body.mode}")
+
+    summary = dispatcher.get_task_graph_summary()
+    return DispatchResponse(
+        dispatched=[DispatchResult(**r) for r in results],
+        count=len(results),
+        summary=summary,
+    )
 
 
 @router.post("/reorder", response_model=list[TaskResponse])

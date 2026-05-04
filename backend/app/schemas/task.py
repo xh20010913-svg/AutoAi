@@ -43,3 +43,22 @@ class TaskResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class DispatchRequest(BaseModel):
+    mode: str = "single"  # "single", "batch", "by_role"
+    role: str | None = None
+    max_count: int | None = None
+
+
+class DispatchResult(BaseModel):
+    task_id: str
+    title: str
+    assigned_role: str
+    priority: str
+
+
+class DispatchResponse(BaseModel):
+    dispatched: list[DispatchResult]
+    count: int
+    summary: dict | None = None
