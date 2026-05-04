@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type CSSProperties } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   DndContext,
   DragOverlay,
@@ -13,17 +13,15 @@ import {
 } from "@dnd-kit/core"
 import {
   SortableContext,
-  useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
-import { GripVertical } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { taskApi, type Task, type TaskStatus } from "@/lib/api"
 import { showToast } from "@/lib/toast"
 import { connectWebSocket } from "@/lib/ws"
 import { CreateTaskDialog } from "@/components/CreateTaskDialog"
 import { TaskDetailPanel } from "@/components/TaskDetailPanel"
+import { SortableTaskCard, TaskCardOverlay } from "@/components/TaskCard"
 
 interface ColumnDef {
   id: TaskStatus
@@ -159,29 +157,6 @@ function DroppableColumn({
           ))}
         </div>
       </SortableContext>
-    </div>
-  )
-}
-
-function TaskCardOverlay({ task }: { task: Task }) {
-  return (
-    <div className="bg-card p-3 shadow-lg w-64 pixel-border-accent">
-      <h4 className="text-sm font-medium text-card-foreground">{task.title}</h4>
-      {task.description && (
-        <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-          {task.description}
-        </p>
-      )}
-      <div className="mt-3">
-        <span
-          className={cn(
-            "border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider font-mono",
-            priorityColors[task.priority] ?? priorityColors.none,
-          )}
-        >
-          {task.priority}
-        </span>
-      </div>
     </div>
   )
 }
