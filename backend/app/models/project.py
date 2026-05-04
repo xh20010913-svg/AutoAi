@@ -21,6 +21,13 @@ class Agent(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
+    role: Mapped[str] = mapped_column(String, default="assistant")
+    model: Mapped[str] = mapped_column(String, default="")
+    provider: Mapped[str] = mapped_column(String, default="")
+    status: Mapped[str] = mapped_column(String, default="idle")
+    active_tasks: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class Task(Base):
@@ -32,6 +39,7 @@ class Task(Base):
     status: Mapped[str] = mapped_column(String, default="todo")
     priority: Mapped[str] = mapped_column(String, default="medium")
     assignee: Mapped[str] = mapped_column(String, default="")
+    assignee_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("agents.id"), nullable=True)
     project_id: Mapped[str | None] = mapped_column(String, ForeignKey("projects.id"), nullable=True)
     position: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

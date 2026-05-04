@@ -9,6 +9,7 @@ class TaskCreate(BaseModel):
     status: str = "todo"
     priority: str = "medium"
     assignee: str = ""
+    assignee_id: int | None = None
     position: int = 0
 
 
@@ -18,6 +19,7 @@ class TaskUpdate(BaseModel):
     status: str | None = None
     priority: str | None = None
     assignee: str | None = None
+    assignee_id: int | None = None
     position: int | None = None
 
 
@@ -37,6 +39,7 @@ class TaskResponse(BaseModel):
     status: str
     priority: str
     assignee: str
+    assignee_id: int | None
     project_id: str | None
     position: int
     created_at: datetime
