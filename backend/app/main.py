@@ -7,13 +7,16 @@ from app.api import api_router
 from app.database import engine
 from app.models.project import Base
 from app.models.user import User  # noqa: F401 — ensure users table is created
+from app.ws import ws_manager
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    ws_manager.start_broadcast_loop(interval=5.0)
     yield
+    ws_manager.stop_broadcast_loop()
 
 
 app = FastAPI(title="AutoAi Backend", version="0.1.0", lifespan=lifespan)
