@@ -24,8 +24,15 @@ class Project(Base):
 class Agent(Base):
     __tablename__ = "agents"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str]
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid4()))
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    role: Mapped[str] = mapped_column(String, default="backend")
+    model: Mapped[str] = mapped_column(String, default="")
+    provider_id: Mapped[str | None] = mapped_column(String, ForeignKey("projects.id"), nullable=True)
+    status: Mapped[str] = mapped_column(String, default="idle")
+    system_prompt: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class Task(Base):
