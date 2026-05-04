@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -5,14 +7,44 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_session
 from app.models.project import Task
 from app.schemas.task import (
+    AutoAssignAllResponse,
+    AutoAssignResponse,
     TaskCreate,
     TaskReorder,
     TaskResponse,
     TaskStatusUpdate,
     TaskUpdate,
 )
+from app.services.auto_assign import auto_assign_all, auto_assign_task
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
+
+
+@router.post("/auto-assign", response_model=AutoAssignAllResponse)
+async def auto_assign_all_tasks(
+    session: AsyncSession = Depends(get_session),
+):
+    """Scan all unassigned todo tasks and auto-assign them to the best agents."""
+    assignments = await auto_assign_all(session)
+    return AutoAssignAllResponse(
+        assigned=len(assignments),
+        assignments=[AutoAssignResponse(**a) for a in assignments],
+    )
+
+
+@router.post("/{task_id}/auto-assign", response_model=TaskResponse)
+async def auto_assign_single_task(
+    task_id: str,
+    session: AsyncSession = Depends(get_session),
+):
+    """Auto-assign a single task to the best available agent."""
+    task = await auto_assign_task(session, task_id)
+    if not task:
+        raise HTTPException(
+            status_code=404,
+            detail="Task not found, not in todo status, or no available agent",
+        )
+    return task
 
 
 @router.get("", response_model=list[TaskResponse])

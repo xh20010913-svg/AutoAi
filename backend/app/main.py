@@ -7,16 +7,19 @@ from app.api import api_router
 from app.database import engine
 from app.models.project import Base
 from app.models.user import User  # noqa: F401 — ensure users table is created
+from app.scheduler import start_scheduler, stop_scheduler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    start_scheduler()
     yield
+    stop_scheduler()
 
 
-app = FastAPI(title="AutoAi Backend", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="AutoAi Backend", version="0.3.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
