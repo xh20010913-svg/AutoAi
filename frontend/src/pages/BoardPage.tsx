@@ -31,17 +31,17 @@ interface ColumnDef {
 
 const COLUMNS: ColumnDef[] = [
   { id: "todo", title: "Todo", color: "bg-zinc-400" },
-  { id: "in_progress", title: "In Progress", color: "bg-blue-500" },
-  { id: "in_review", title: "In Review", color: "bg-amber-500" },
+  { id: "in_progress", title: "In Progress", color: "bg-amber-500" },
+  { id: "in_review", title: "In Review", color: "bg-orange-500" },
   { id: "done", title: "Done", color: "bg-emerald-500" },
   { id: "blocked", title: "Blocked", color: "bg-red-500" },
 ]
 
 const priorityColors: Record<string, string> = {
-  high: "bg-red-500/15 text-red-400 border-red-500/20",
-  medium: "bg-amber-500/15 text-amber-400 border-amber-500/20",
-  low: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20",
-  none: "bg-zinc-500/15 text-zinc-400 border-zinc-500/20",
+  high: "bg-red-500/15 text-red-400 border-red-500/30",
+  medium: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+  low: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+  none: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
 }
 
 function SortableTaskCard({
@@ -70,7 +70,7 @@ function SortableTaskCard({
     <div
       ref={setNodeRef}
       style={style}
-      className="group rounded-lg border border-border bg-card p-3 transition-colors hover:border-primary/40"
+      className="group bg-card p-3 transition-colors hover:border-primary pixel-border-sm"
     >
       <div className="flex items-start justify-between">
         <h4
@@ -95,7 +95,7 @@ function SortableTaskCard({
       <div className="mt-3 flex items-center justify-between">
         <span
           className={cn(
-            "rounded-md border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider",
+            "border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider font-mono",
             priorityColors[task.priority] ?? priorityColors.none,
           )}
         >
@@ -123,11 +123,11 @@ function DroppableColumn({
   const { setNodeRef } = useDroppable({ id: column.id })
 
   return (
-    <div className="flex w-72 flex-col rounded-lg border border-border bg-muted/30">
-      <div className="flex items-center gap-2 p-3 border-b border-border">
-        <div className={cn("h-2.5 w-2.5 rounded-full", column.color)} />
+    <div className="flex w-72 flex-col bg-muted/20 pixel-border">
+      <div className="flex items-center gap-2 p-3 border-b-2 border-border">
+        <div className={cn("h-2.5 w-2.5", column.color)} />
         <h3 className="text-sm font-medium">{column.title}</h3>
-        <span className="ml-auto rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+        <span className="ml-auto bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground font-mono border border-border">
           {tasks.length}
         </span>
       </div>
@@ -154,7 +154,7 @@ function DroppableColumn({
 
 function TaskCardOverlay({ task }: { task: Task }) {
   return (
-    <div className="rounded-lg border border-primary bg-card p-3 shadow-lg w-64">
+    <div className="bg-card p-3 shadow-lg w-64 pixel-border-accent">
       <h4 className="text-sm font-medium text-card-foreground">{task.title}</h4>
       {task.description && (
         <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
@@ -164,7 +164,7 @@ function TaskCardOverlay({ task }: { task: Task }) {
       <div className="mt-3">
         <span
           className={cn(
-            "rounded-md border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider",
+            "border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider font-mono",
             priorityColors[task.priority] ?? priorityColors.none,
           )}
         >
@@ -239,7 +239,6 @@ export function BoardPage() {
     const activeId = active.id as string
     const overId = over.id as string
 
-    // Check if we're hovering over a column directly
     const overIsColumn = COLUMNS.some((c) => c.id === overId)
     const activeTask = tasks.find((t) => t.id === activeId)
     if (!activeTask) return
@@ -248,7 +247,6 @@ export function BoardPage() {
     if (overIsColumn) {
       targetStatus = overId as TaskStatus
     } else {
-      // Hovering over another task — check its column
       const overTask = tasks.find((t) => t.id === overId)
       if (overTask && overTask.status !== activeTask.status) {
         targetStatus = overTask.status
@@ -256,7 +254,6 @@ export function BoardPage() {
     }
 
     if (targetStatus && targetStatus !== activeTask.status) {
-      // Optimistic update: move task to new column
       setTasks((prev) =>
         prev.map((t) =>
           t.id === activeId ? { ...t, status: targetStatus! } : t,
@@ -277,7 +274,6 @@ export function BoardPage() {
     const activeTask = tasks.find((t) => t.id === activeId)
     if (!activeTask) return
 
-    // Determine target column
     const overIsColumn = COLUMNS.some((c) => c.id === overId)
     let targetStatus: TaskStatus
     let targetPosition: number | undefined
@@ -291,7 +287,6 @@ export function BoardPage() {
       targetPosition = overTask.position
     }
 
-    // Check if anything changed
     const statusChanged = activeTask.status !== targetStatus
     const positionChanged =
       targetPosition !== undefined && activeTask.position !== targetPosition
@@ -306,13 +301,11 @@ export function BoardPage() {
       setTasks((prev) =>
         prev.map((t) => (t.id === activeId ? updated : t)),
       )
-      // Update selected task if it's the one we moved
       if (selectedTask?.id === activeId) {
         setSelectedTask(updated)
       }
     } catch (err) {
       console.error("Failed to update task position:", err)
-      // Reload to revert optimistic update
       await loadTasks(projectId)
     }
   }
@@ -334,7 +327,7 @@ export function BoardPage() {
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading board...</p>
+        <p className="text-sm text-muted-foreground font-mono">Loading board...</p>
       </div>
     )
   }
