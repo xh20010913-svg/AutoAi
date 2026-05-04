@@ -31,12 +31,12 @@
 
 目标：v0.4.0
 
-- [ ] `autoai/dispatcher.py` — 根据任务状态、依赖和角色预算选择下一项工作
+- [x] `autoai/dispatcher.py` — 根据任务状态、依赖和角色预算选择下一项工作
 - [ ] 支持单任务运行、连续运行、按角色运行
 - [ ] Harness 从 task graph 而非 feature list 驱动
-- [ ] `POST /api/tasks/assign` — 手动分配任务给角色
+- [x] `POST /api/tasks/assign` — 手动分配任务给角色
 - [ ] UI: 任务分配面板
-- [ ] 测试: `test_dispatcher.py`
+- [x] 测试: `test_dispatcher.py`
 
 ## Phase 4: Communication Log
 
