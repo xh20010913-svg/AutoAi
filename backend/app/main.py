@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import api_router
 from app.database import engine
 from app.models.project import Base
+from app.models.agent import AgentConfig, AgentRole, RoleTemplate  # noqa: F401
 from app.models.user import User  # noqa: F401 — ensure users table is created
 
 

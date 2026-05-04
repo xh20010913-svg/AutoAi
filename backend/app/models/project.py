@@ -2,7 +2,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
@@ -19,8 +19,11 @@ class Project(Base):
 class Agent(Base):
     __tablename__ = "agents"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str]
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid4()))
+    name: Mapped[str] = mapped_column(String, nullable=False)
+
+    config: Mapped["AgentConfig | None"] = relationship("AgentConfig", back_populates="agent", uselist=False)
+    agent_role: Mapped["AgentRole | None"] = relationship("AgentRole", back_populates="agent", uselist=False)
 
 
 class Task(Base):
