@@ -1,12 +1,13 @@
 """
-AutoAi Task Dispatcher — 自动任务派发脚本
+AutoAi Task Dispatcher v2 — 本地扫描派发器
 
-扫描 Multica 工作区，当 agent 完成任务后自动派发新任务。
-不弹窗、不启动 git cmd，通过 HTTP API 直接通信。
+完全本地化运行，不弹窗、不调 git。
+通过本地缓存文件追踪 agent 状态，只在必要时调 multica。
 
 用法:
     python scripts/dispatch.py              # 单次扫描
-    python scripts/dispatch.py --loop 60    # 每 60 秒循环扫描
+    python scripts/dispatch.py --loop 120   # 每 120 秒循环
+    python scripts/dispatch.py --sync       # 先同步远程状态再派发
     python scripts/dispatch.py --dry-run    # 只看不干
 """
 
@@ -16,14 +17,17 @@ import sys
 import time
 import argparse
 from pathlib import Path
+from datetime import datetime
 
-# ─── 配置 ───────────────────────────────────────────────────────────────────
+# ─── 路径 ────────────────────────────────────────────────────────────────────
 
-WORKSPACE_ID = "95da582a-1d61-47b4-9400-52660c39e8a1"
-PROJECT_NAME = "AutoAi"
-REPO_URL = "https://github.com/xh20010913-svg/AutoAi"
+SCRIPT_DIR = Path(__file__).parent
+PROJECT_DIR = SCRIPT_DIR.parent
+CACHE_FILE = SCRIPT_DIR / ".dispatch_cache.json"
+STATE_FILE = SCRIPT_DIR / ".dispatch_state.json"
 
-# Agent 角色分配
+# ─── Agent 配置 ──────────────────────────────────────────────────────────────
+
 AGENTS = {
     "backend": [
         {"id": "208acdf3-d3f0-480b-9855-64435925081b", "name": "后端开发"},
@@ -40,384 +44,326 @@ AGENTS = {
     ],
 }
 
-# 后端任务池 (按顺序派发)
-BACKEND_TASKS = [
-    {
-        "title": "[v0.2] 后端用户认证 — JWT 注册/登录",
-        "description": """项目: AutoAi | 仓库: https://github.com/xh20010913-svg/AutoAi
-操作: 先 multica repo checkout https://github.com/xh20010913-svg/AutoAi
+# ─── 任务池 ──────────────────────────────────────────────────────────────────
 
-## 目标
-实现用户注册、登录、JWT token 签发。
-
-## 要求
-1. User 模型: username, email, hashed_password, created_at
-2. auth schemas: UserCreate, UserLogin, UserResponse, Token
-3. API 端点:
-   - POST /api/v1/auth/register
-   - POST /api/v1/auth/login → JWT token
-   - GET /api/v1/auth/me → 当前用户
-4. 密码 bcrypt 哈希, JWT 24h 过期
-5. 测试覆盖注册和登录流程
-
-## 完成后
-提交到分支 feat/auth, 推送到 GitHub, 评论报告完成.""",
-        "priority": "high",
-    },
-    {
-        "title": "[v0.2] 后端 Project CRUD API",
-        "description": """项目: AutoAi | 仓库: https://github.com/xh20010913-svg/AutoAi
-操作: 先 multica repo checkout https://github.com/xh20010913-svg/AutoAi
-
-## 目标
-实现 Project 的增删改查 API。
-
-## 要求
-1. Project 模型: name, description, owner_id, status, created_at, updated_at
-2. API 端点:
-   - POST /api/v1/projects
-   - GET /api/v1/projects (分页)
-   - GET /api/v1/projects/:id
-   - PUT /api/v1/projects/:id
-   - DELETE /api/v1/projects/:id
-3. 测试
-
-## 完成后
-提交到分支 feat/project-api, 推送到 GitHub, 评论报告完成.""",
-        "priority": "high",
-    },
-    {
-        "title": "[v0.2] WebSocket 实时推送",
-        "description": """项目: AutoAi | 仓库: https://github.com/xh20010913-svg/AutoAi
-操作: 先 multica repo checkout https://github.com/xh20010913-svg/AutoAi
-
-## 目标
-实现 WebSocket 端点，实时推送任务变更。
-
-## 要求
-1. WS /api/v1/ws 端点
-2. ConnectionManager 管理连接
-3. 任务 CRUD 时广播事件
-4. 前端可订阅接收
-
-## 完成后
-提交到分支 feat/websocket, 推送到 GitHub, 评论报告完成.""",
-        "priority": "medium",
-    },
-]
-
-# 前端任务池
-FRONTEND_TASKS = [
-    {
-        "title": "[v0.2] UI 重新设计 — 独特像素风格",
-        "description": """项目: AutoAi | 仓库: https://github.com/xh20010913-svg/AutoAi
-操作: 先 multica repo checkout https://github.com/xh20010913-svg/AutoAi
-
-## 目标
-重新设计 UI，使其有独特风格，区别于 Motica/Linear 等产品。
-
-## 设计方向
-- 像素风格 + 现代感的混搭
-- 暖色调为主 (amber/orange 系列)，不用纯 zinc 灰
-- 字体用等宽字体作为标题，正文用 sans-serif
-- 卡片有轻微的像素边框效果
-- 侧边栏带像素风格图标
-
-## 要求
-1. 更新 index.css 的 CSS 变量 — 暖色调主题
-2. 更新 Sidebar — 像素风格 logo, 更好的视觉层次
-3. 更新 Topbar — 品牌感更强
-4. 每个页面的卡片组件加像素风格边框
-5. 保持 shadcn/ui 组件但自定义样式
-
-## 完成后
-提交到分支 feat/ui-redesign, 推送到 GitHub, 评论报告完成.""",
-        "priority": "high",
-    },
-    {
-        "title": "[v0.2] 多语言支持 — 中文/英文切换",
-        "description": """项目: AutoAi | 仓库: https://github.com/xh20010913-svg/AutoAi
-操作: 先 multica repo checkout https://github.com/xh20010913-svg/AutoAi
-
-## 目标
-实现 i18n 国际化，Settings 页面可以切换中文/英文。
-
-## 要求
-1. 安装 react-i18next + i18next
-2. 创建语言文件:
-   - src/i18n/zh.json — 中文翻译
-   - src/i18n/en.json — 英文翻译
-3. 覆盖所有页面的硬编码文字:
-   - Sidebar 导航文字
-   - 页面标题
-   - 按钮文字
-   - Settings 页面所有选项
-4. Settings 页面加语言切换器:
-   - 下拉选择: 中文 / English
-   - 选择后立即生效，存 localStorage
-5. 创建 useTranslation hook 使用
-
-## 完成后
-提交到分支 feat/i18n, 推送到 GitHub, 评论报告完成.""",
-        "priority": "high",
-    },
-    {
-        "title": "[v0.2] 像素小人动画组件",
-        "description": """项目: AutoAi | 仓库: https://github.com/xh20010913-svg/AutoAi
-操作: 先 multica repo checkout https://github.com/xh20010913-svg/AutoAi
-
-## 目标
-创建像素小人动画组件，在 Agents 页面展示每个 agent 的工作状态。
-
-## 参考
-- claude-quest (github.com/Michaelliv/claude-quest) — RPG 风格像素动画
-- react-pixel-motion — React 像素精灵动画组件
-
-## 要求
-1. 创建 PixelCharacter 组件:
-   - 用 CSS 动画实现简单像素小人 (不需要精灵图，用 CSS div 拼像素)
-   - 工作状态: 坐在桌子前敲键盘的动画 (手臂上下动)
-   - 空闲状态: 坐在沙发上休息 (轻微晃动)
-   - 出错状态: 红色闪烁
-2. 创建场景组件:
-   - 办公桌场景 (工作时)
-   - 沙发场景 (空闲时)
-3. 集成到 AgentsPage:
-   - 每个 agent card 中显示像素小人
-   - 根据 agent.status 切换场景
-4. 用纯 CSS + HTML 实现像素风格 (不依赖外部图片)
-
-## 完成后
-提交到分支 feat/pixel-characters, 推送到 GitHub, 评论报告完成.""",
-        "priority": "medium",
-    },
-]
-
-# 测试任务 — 等开发完成后再派发
-TESTER_TASKS = [
-    {
-        "title": "[测试] 验证 Task CRUD API 全部端点",
-        "description": """项目: AutoAi | 仓库: https://github.com/xh20010913-svg/AutoAi
-操作: 先 multica repo checkout https://github.com/xh20010913-svg/AutoAi
-
-## 目标
-全面测试 Task CRUD API 的所有端点。
-
-## 要求
-1. 测试所有 CRUD 操作
-2. 测试边界条件 (空标题、超长描述、无效状态)
-3. 测试并发安全性
-4. 生成测试报告
-
-## 完成后
-提交到分支 test/task-api, 推送到 GitHub, 评论报告完成.""",
-        "priority": "medium",
-    },
-]
+TASK_POOL = {
+    "backend": [
+        {
+            "title": "[v0.2] Project CRUD API",
+            "desc": "项目: AutoAi | 仓库: https://github.com/xh20010913-svg/AutoAi\n\n"
+                    "实现 Project 增删改查 API.\n"
+                    "1. Project 模型: name, description, owner_id, status\n"
+                    "2. POST/GET/PUT/DELETE /api/v1/projects\n"
+                    "3. 测试\n\n"
+                    "完成后提交到分支 feat/project-api, 推送, 评论报告.",
+            "priority": "high",
+        },
+        {
+            "title": "[v0.2] WebSocket 实时推送",
+            "desc": "项目: AutoAi | 仓库: https://github.com/xh20010913-svg/AutoAi\n\n"
+                    "实现 WebSocket 端点, 实时推送任务变更.\n"
+                    "1. WS /api/v1/ws\n"
+                    "2. ConnectionManager\n"
+                    "3. 任务变更广播\n\n"
+                    "完成后提交到分支 feat/websocket, 推送, 评论报告.",
+            "priority": "medium",
+        },
+        {
+            "title": "[v0.3] Agent CRUD API",
+            "desc": "项目: AutoAi | 仓库: https://github.com/xh20010913-svg/AutoAi\n\n"
+                    "实现 Agent 增删改查 API.\n"
+                    "1. Agent 模型: name, role, model, status\n"
+                    "2. CRUD 端点\n"
+                    "3. 测试\n\n"
+                    "完成后提交到分支 feat/agent-api, 推送, 评论报告.",
+            "priority": "medium",
+        },
+        {
+            "title": "[v0.3] Provider 配置 API",
+            "desc": "项目: AutoAi | 仓库: https://github.com/xh20010913-svg/AutoAi\n\n"
+                    "实现模型提供商配置 API.\n"
+                    "1. Provider 模型: name, type, base_url, api_key\n"
+                    "2. CRUD + 健康检查\n\n"
+                    "完成后提交到分支 feat/provider-api, 推送, 评论报告.",
+            "priority": "medium",
+        },
+    ],
+    "frontend": [
+        {
+            "title": "[v0.2] 多语言 i18n 中英文切换",
+            "desc": "项目: AutoAi | 仓库: https://github.com/xh20010913-svg/AutoAi\n\n"
+                    "实现 i18n: react-i18next, zh.json/en.json, Settings 语言切换器.\n"
+                    "所有页面文字翻译, localStorage 持久化.\n\n"
+                    "完成后提交到分支 feat/i18n, 推送, 评论报告.",
+            "priority": "high",
+        },
+        {
+            "title": "[v0.2] 像素办公室大场景",
+            "desc": "项目: AutoAi | 仓库: https://github.com/xh20010913-svg/AutoAi\n\n"
+                    "创建像素办公室大场景组件 (详见 AUT-167 详细规格).\n"
+                    "参考: rolandal/pixel-agents-standalone, W17ant/Claude-Office\n\n"
+                    "完成后提交到分支 feat/pixel-office, 推送, 评论报告.",
+            "priority": "high",
+        },
+        {
+            "title": "[v0.3] 前端集成认证 API",
+            "desc": "项目: AutoAi | 仓库: https://github.com/xh20010913-svg/AutoAi\n\n"
+                    "前端对接 JWT 认证: 登录页/注册页, token 存储, Axios 拦截器.\n\n"
+                    "完成后提交到分支 feat/frontend-auth, 推送, 评论报告.",
+            "priority": "medium",
+        },
+        {
+            "title": "[v0.3] Board 页面连接真实 API",
+            "desc": "项目: AutoAi | 仓库: https://github.com/xh20010913-svg/AutoAi\n\n"
+                    "Board 从 API 加载任务, 拖拽更新状态, WebSocket 实时同步.\n\n"
+                    "完成后提交到分支 feat/board-api, 推送, 评论报告.",
+            "priority": "medium",
+        },
+    ],
+    "tester": [
+        {
+            "title": "[测试] Auth API 测试",
+            "desc": "项目: AutoAi | 仓库: https://github.com/xh20010913-svg/AutoAi\n\n"
+                    "测试 JWT 认证: 注册/登录/me, 边界条件, 安全性.\n\n"
+                    "完成后提交到分支 test/auth, 推送, 评论报告.",
+            "priority": "medium",
+        },
+        {
+            "title": "[测试] Task CRUD 测试",
+            "desc": "项目: AutoAi | 仓库: https://github.com/xh20010913-svg/AutoAi\n\n"
+                    "测试 Task CRUD 全部端点, 边界条件, 并发.\n\n"
+                    "完成后提交到分支 test/task-api, 推送, 评论报告.",
+            "priority": "medium",
+        },
+        {
+            "title": "[测试] 前端组件测试",
+            "desc": "项目: AutoAi | 仓库: https://github.com/xh20010913-svg/AutoAi\n\n"
+                    "Vitest + RTL 测试像素动画/i18n/UI 回归.\n\n"
+                    "完成后提交到分支 test/frontend, 推送, 评论报告.",
+            "priority": "medium",
+        },
+    ],
+}
 
 
-def run_multica(args: list[str], capture: bool = True) -> str:
-    """运行 multica CLI 命令，静默不弹窗。"""
-    result = subprocess.run(
-        ["multica"] + args,
-        capture_output=capture,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
-    )
-    return result.stdout.strip() if capture else ""
+def hidden_subprocess(args: list, **kwargs) -> subprocess.CompletedResult:
+    """运行子进程，完全隐藏窗口 (Windows 专用)."""
+    if sys.platform == "win32":
+        si = subprocess.STARTUPINFO()
+        si.dwFlags = subprocess.STARTF_USESHOWWINDOW
+        si.wShowWindow = 0  # SW_HIDE
+        kwargs["startupinfo"] = si
+        kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+    kwargs.setdefault("capture_output", True)
+    kwargs.setdefault("text", True)
+    kwargs.setdefault("encoding", "utf-8")
+    kwargs.setdefault("errors", "replace")
+    return subprocess.run(args, **kwargs)
 
 
-def get_issues(status: str = None) -> list[dict]:
-    """获取 issue 列表。"""
-    cmd = ["issue", "list", "--output", "json", "--limit", "100"]
-    if status:
-        cmd.extend(["--status", status])
-    try:
-        output = run_multica(cmd)
-        data = json.loads(output)
-        return data.get("issues", [])
-    except (json.JSONDecodeError, Exception) as e:
-        print(f"  [WARN] Failed to get issues: {e}")
-        return []
-
-
-def get_agent_workload(agent_id: str) -> int:
-    """获取 agent 当前进行中的任务数。"""
-    issues = get_issues("in_progress")
-    return sum(1 for i in issues if i.get("assignee_id") == agent_id)
-
-
-def get_existing_titles() -> set[str]:
-    """获取所有已有任务标题关键词，防止重复。"""
-    issues = get_issues()
-    titles = set()
-    for issue in issues:
-        title = issue.get("title", "")
-        # 提取关键词
-        for word in title.replace("[v0.2]", "").replace("[v0.3]", "").replace("[测试]", "").split():
-            if len(word) > 2:
-                titles.add(word.lower())
-    return titles
-
-
-def create_task(title: str, description: str, priority: str, assignee_name: str) -> str:
-    """创建任务并分配给 agent。"""
-    output = run_multica([
-        "issue", "create",
-        "--title", title,
-        "--priority", priority,
-        "--assignee", assignee_name,
-        "--status", "todo",
-        "--description-stdin",
-    ])
-    # 通过 stdin 传入 description
-    result = subprocess.run(
-        ["multica", "issue", "create",
-         "--title", title,
-         "--priority", priority,
-         "--assignee", assignee_name,
-         "--status", "todo",
-         "--description-stdin"],
-        input=description,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
-    )
-    try:
-        data = json.loads(result.stdout)
-        return data.get("id", "")
-    except:
-        return ""
-
-
-def trigger_agent(issue_id: str, agent_id: str, agent_name: str):
-    """通过 comment @mention 触发 agent。"""
-    comment = f"[@{agent_name}](mention://agent/{agent_id}) 请开始执行此任务。完成后推送到分支并评论报告。"
-    subprocess.run(
-        ["multica", "issue", "comment", "add", issue_id, "--content-stdin"],
-        input=comment,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
-    )
-
-
-def find_idle_agent(role: str) -> dict | None:
-    """找到空闲的 agent (最多同时 2 个 in_progress)。"""
-    agents = AGENTS.get(role, [])
-    for agent in agents:
-        workload = get_agent_workload(agent["id"])
-        if workload < 2:
-            return agent
-    return None
-
-
-def scan_and_dispatch(dry_run: bool = False):
-    """扫描并派发任务。"""
-    print(f"\n{'='*60}")
-    print(f"  AutoAi Dispatcher — 扫描开始")
-    print(f"{'='*60}")
-
-    # 1. 获取当前所有 issue 状态
-    todo_issues = get_issues("todo")
-    in_progress_issues = get_issues("in_progress")
-    in_review_issues = get_issues("in_review")
-
-    print(f"\n  状态统计:")
-    print(f"    Todo:       {len(todo_issues)}")
-    print(f"    In Progress: {len(in_progress_issues)}")
-    print(f"    In Review:   {len(in_review_issues)}")
-
-    # 2. 检查 in_review 的任务 → 标记为 done
-    for issue in in_review_issues:
-        # 检查是否有运行记录
-        issue_id = issue["id"]
-        identifier = issue["identifier"]
-        title = issue["title"][:40]
-        print(f"\n  [REVIEW] {identifier}: {title}")
-
-        # 检查是否有分支推送
-        runs_output = run_multica(["issue", "runs", issue_id, "--output", "json"])
+def load_cache() -> dict:
+    """加载本地缓存."""
+    if CACHE_FILE.exists():
         try:
-            runs = json.loads(runs_output)
-            completed_runs = [r for r in runs if r.get("status") == "completed"]
-            if completed_runs and not dry_run:
-                run_multica(["issue", "status", issue_id, "done"])
-                print(f"    → 标记为 done [OK]")
-            elif completed_runs:
-                print(f"    → [DRY RUN] 会标记为 done")
+            return json.loads(CACHE_FILE.read_text(encoding="utf-8"))
         except:
             pass
+    return {"issues": [], "last_sync": None, "dispatched": []}
 
-    # 3. 检查空闲 agent → 派发新任务
-    print(f"\n  检查空闲 agent:")
 
-    # 后端 agent
-    for role, task_pool, agent_role in [
-        ("backend", BACKEND_TASKS, "backend"),
-        ("frontend", FRONTEND_TASKS, "frontend"),
-        ("tester", TESTER_TASKS, "tester"),
-    ]:
-        if not task_pool:
+def save_cache(cache: dict):
+    """保存本地缓存."""
+    CACHE_FILE.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def sync_from_multica() -> dict:
+    """从 multica 同步 issue 状态到本地缓存 (只调用一次)."""
+    cache = load_cache()
+
+    # 只调一次 multica 获取所有 issue
+    result = hidden_subprocess(
+        ["multica", "issue", "list", "--output", "json", "--limit", "200"]
+    )
+    if result.returncode == 0:
+        try:
+            data = json.loads(result.stdout)
+            cache["issues"] = data.get("issues", [])
+            cache["last_sync"] = datetime.now().isoformat()
+            save_cache(cache)
+            print(f"  [SYNC] 已同步 {len(cache['issues'])} 个 issues")
+        except json.JSONDecodeError:
+            print("  [WARN] 同步失败, 使用本地缓存")
+    else:
+        print("  [WARN] multica 调用失败, 使用本地缓存")
+
+    return cache
+
+
+def get_agent_status(agent_id: str, issues: list[dict]) -> dict:
+    """从本地缓存获取 agent 状态."""
+    agent_issues = [i for i in issues if i.get("assignee_id") == agent_id]
+    return {
+        "todo": len([i for i in agent_issues if i.get("status") == "todo"]),
+        "in_progress": len([i for i in agent_issues if i.get("status") == "in_progress"]),
+        "in_review": len([i for i in agent_issues if i.get("status") == "in_review"]),
+        "done": len([i for i in agent_issues if i.get("status") == "done"]),
+    }
+
+
+def close_reviewed_issues(cache: dict, dry_run: bool) -> int:
+    """关闭 in_review 状态的任务."""
+    closed = 0
+    review_issues = [i for i in cache["issues"] if i.get("status") == "in_review"]
+
+    for issue in review_issues:
+        iid = issue["id"]
+        ident = issue["identifier"]
+        print(f"  [CLOSE] {ident}: {issue['title'][:40]}")
+
+        if not dry_run:
+            result = hidden_subprocess(
+                ["multica", "issue", "status", iid, "done"]
+            )
+            if result.returncode == 0:
+                issue["status"] = "done"
+                closed += 1
+                print(f"    -> done")
+        else:
+            print(f"    -> [DRY] would close")
+
+    return closed
+
+
+def dispatch_to_agent(agent: dict, task: dict, dry_run: bool) -> bool:
+    """派发任务给单个 agent."""
+    if dry_run:
+        print(f"    [DRY] -> {agent['name']}: {task['title'][:40]}")
+        return True
+
+    # 创建 issue
+    result = hidden_subprocess(
+        ["multica", "issue", "create",
+         "--title", task["title"],
+         "--priority", task["priority"],
+         "--assignee", agent["name"],
+         "--status", "todo",
+         "--description-stdin"],
+        input=task["desc"],
+    )
+    if result.returncode != 0:
+        print(f"    [FAIL] 创建 issue 失败: {result.stderr[:100]}")
+        return False
+
+    try:
+        data = json.loads(result.stdout)
+        issue_id = data.get("id", "")
+    except:
+        print(f"    [FAIL] 解析响应失败")
+        return False
+
+    if not issue_id:
+        return False
+
+    # 触发 agent
+    comment = f"[@{agent['name']}](mention://agent/{agent['id']}) 请开始执行。完成后推送分支并评论报告。"
+    hidden_subprocess(
+        ["multica", "issue", "comment", "add", issue_id, "--content-stdin"],
+        input=comment,
+    )
+
+    print(f"    [OK] -> {agent['name']}: {task['title'][:40]} (ID: {issue_id[:8]}...)")
+    return True
+
+
+def scan_and_dispatch(sync: bool = False, dry_run: bool = False):
+    """主扫描逻辑."""
+    print(f"\n{'='*50}")
+    print(f"  AutoAi Dispatcher v2")
+    print(f"  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"{'='*50}")
+
+    # 获取状态 (优先本地缓存)
+    if sync:
+        cache = sync_from_multica()
+    else:
+        cache = load_cache()
+        if cache["last_sync"]:
+            print(f"  使用本地缓存 (同步于: {cache['last_sync'][:19]})")
+        else:
+            cache = sync_from_multica()
+
+    issues = cache.get("issues", [])
+
+    # 统计
+    by_status = {}
+    for i in issues:
+        s = i.get("status", "unknown")
+        by_status[s] = by_status.get(s, 0) + 1
+
+    print(f"\n  Issues: {json.dumps(by_status, ensure_ascii=False)}")
+
+    # 关闭 in_review
+    closed = close_reviewed_issues(cache, dry_run)
+    if closed:
+        save_cache(cache)
+
+    # 并行派发 — 所有空闲 agent 都拿到任务
+    print(f"\n  派发任务:")
+    dispatched = 0
+
+    for role, tasks in TASK_POOL.items():
+        if not tasks:
             continue
 
-        agent = find_idle_agent(agent_role)
-        if not agent:
-            print(f"    {role}: 所有 agent 都在忙")
-            continue
+        agents = AGENTS.get(role, [])
+        for agent in agents:
+            status = get_agent_status(agent["id"], issues if not closed else cache["issues"])
 
-        # 检查是否还有待派发的任务
-        existing_titles = get_existing_titles()
-        for task in task_pool:
-            # 检查标题是否已存在
-            task_keywords = set(task["title"].lower().split())
-            if task_keywords & existing_titles:
-                continue  # 跳过已存在的任务
+            # 空闲判断: in_progress < 3 (提高上限，多派任务)
+            if status["in_progress"] >= 3:
+                print(f"  {agent['name']}: 忙碌 ({status['in_progress']} in_progress)")
+                continue
 
-            print(f"    → 派发给 {agent['name']}: {task['title'][:40]}")
-            if not dry_run:
-                issue_id = create_task(
-                    task["title"],
-                    task["description"],
-                    task["priority"],
-                    agent["name"],
-                )
-                if issue_id:
-                    trigger_agent(issue_id, agent["id"], agent["name"])
-                    print(f"      Issue ID: {issue_id} [OK]")
-                    # 从池中移除
-                    task_pool.remove(task)
+            # 找一个还没派的任务
+            dispatched_titles = set(cache.get("dispatched", []))
+            for task in tasks[:]:
+                if task["title"] in dispatched_titles:
+                    continue
+
+                if dispatch_to_agent(agent, task, dry_run):
+                    dispatched += 1
+                    cache.setdefault("dispatched", []).append(task["title"])
+                    tasks.remove(task)
+                    save_cache(cache)
                     break
-            else:
-                print(f"      [DRY RUN] 不实际创建")
 
-    print(f"\n{'='*60}")
-    print(f"  扫描完成")
-    print(f"{'='*60}\n")
+    print(f"\n  本次派发: {dispatched} 个任务")
+    print(f"{'='*50}\n")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="AutoAi 任务自动派发器")
-    parser.add_argument("--loop", type=int, help="循环间隔 (秒)")
+    parser = argparse.ArgumentParser(description="AutoAi 任务自动派发器 v2")
+    parser.add_argument("--loop", type=int, default=0, help="循环间隔 (秒)")
+    parser.add_argument("--sync", action="store_true", help="先从 multica 同步状态")
     parser.add_argument("--dry-run", action="store_true", help="只看不干")
+    parser.add_argument("--reset", action="store_true", help="清除缓存重新开始")
     args = parser.parse_args()
 
-    if args.loop:
-        print(f"自动派发模式: 每 {args.loop} 秒扫描一次 (Ctrl+C 停止)")
+    if args.reset:
+        if CACHE_FILE.exists():
+            CACHE_FILE.unlink()
+        print("缓存已清除")
+
+    if args.loop > 0:
+        print(f"自动派发: 每 {args.loop} 秒扫描 (Ctrl+C 停止)")
         try:
             while True:
-                scan_and_dispatch(dry_run=args.dry_run)
+                scan_and_dispatch(sync=args.sync, dry_run=args.dry_run)
                 time.sleep(args.loop)
         except KeyboardInterrupt:
-            print("\n停止扫描")
+            print("\n停止")
     else:
-        scan_and_dispatch(dry_run=args.dry_run)
+        scan_and_dispatch(sync=args.sync, dry_run=args.dry_run)
 
 
 if __name__ == "__main__":
