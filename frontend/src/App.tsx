@@ -6,6 +6,7 @@ import { AgentsPage } from "@/pages/AgentsPage"
 import { RuntimePage } from "@/pages/RuntimePage"
 import { ModelsPage } from "@/pages/ModelsPage"
 import { SettingsPage } from "@/pages/SettingsPage"
+import { OfficePage } from "@/pages/OfficePage"
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
           <Route element={<AppLayout />}>
             <Route path="/" element={<BoardPage />} />
             <Route path="/agents" element={<AgentsPage />} />
+            <Route path="/office" element={<OfficePage />} />
             <Route path="/runtime" element={<RuntimePage />} />
             <Route path="/models" element={<ModelsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
