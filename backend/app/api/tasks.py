@@ -11,6 +11,7 @@ from app.schemas.task import (
     TaskStatusUpdate,
     TaskUpdate,
 )
+from app.services.notification import create_notification, find_user_id_by_username
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -37,6 +38,17 @@ async def create_task(
     session.add(task)
     await session.commit()
     await session.refresh(task)
+
+    # Notify assignee if task is created with an assignee
+    if task.assignee:
+        user_id = await find_user_id_by_username(session, task.assignee)
+        if user_id:
+            await create_notification(
+                session, user_id, "task_assigned",
+                "New task assigned",
+                f"You have been assigned to task: {task.title}",
+            )
+
     return task
 
 
@@ -60,10 +72,36 @@ async def update_task(
     task = await session.get(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+
+    old_assignee = task.assignee
+    old_status = task.status
+
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(task, field, value)
+
     await session.commit()
     await session.refresh(task)
+
+    # Notify new assignee if assignee changed
+    if body.assignee is not None and body.assignee != old_assignee and body.assignee:
+        user_id = await find_user_id_by_username(session, body.assignee)
+        if user_id:
+            await create_notification(
+                session, user_id, "task_assigned",
+                "Task assigned to you",
+                f"You have been assigned to task: {task.title}",
+            )
+
+    # Notify assignee if task completed via update
+    if body.status == "done" and old_status != "done" and task.assignee:
+        user_id = await find_user_id_by_username(session, task.assignee)
+        if user_id:
+            await create_notification(
+                session, user_id, "task_completed",
+                "Task completed",
+                f"Task completed: {task.title}",
+            )
+
     return task
 
 
@@ -88,11 +126,25 @@ async def update_task_status(
     task = await session.get(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+
+    old_status = task.status
     task.status = body.status
     if body.position is not None:
         task.position = body.position
+
     await session.commit()
     await session.refresh(task)
+
+    # Notify assignee when task is completed
+    if body.status == "done" and old_status != "done" and task.assignee:
+        user_id = await find_user_id_by_username(session, task.assignee)
+        if user_id:
+            await create_notification(
+                session, user_id, "task_completed",
+                "Task completed",
+                f"Task completed: {task.title}",
+            )
+
     return task
 
 
