@@ -89,11 +89,14 @@ export function TaskDetailPanel({ task, projectId, onClose, onUpdated, onDeleted
 
   return (
     <div
-      className="fixed inset-y-0 right-0 z-40 flex w-96 flex-col bg-background shadow-xl border-l-2 border-border"
+      className="fixed inset-y-0 right-0 z-40 flex w-96 flex-col bg-background shadow-xl border-l-2 border-border relative"
       style={{ animation: "slideInFromRight 0.2s ease-out" }}
     >
       <div className="flex items-center justify-between border-b-2 border-border px-4 py-3">
-        <h2 className="text-sm font-semibold">Task Details</h2>
+        <div className="flex items-center gap-2">
+          <div className="h-2 w-2 bg-primary" />
+          <h2 className="text-sm font-semibold">Task Details</h2>
+        </div>
         <button
           onClick={onClose}
           className="p-1 text-muted-foreground hover:bg-accent hover:text-foreground border border-transparent hover:border-border"

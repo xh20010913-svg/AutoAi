@@ -70,8 +70,12 @@ function SortableTaskCard({
     <div
       ref={setNodeRef}
       style={style}
-      className="group bg-card p-3 transition-colors hover:border-primary pixel-border-sm"
+      className="group bg-card p-3 transition-all hover:border-primary pixel-border-sm hover:pixel-glow relative"
     >
+      {/* Pixel corner accents */}
+      <div className="absolute top-0 left-0 w-[6px] h-[6px] border-t-2 border-l-2 border-primary/40 opacity-0 group-hover:opacity-100 transition-opacity" />
+      <div className="absolute bottom-0 right-0 w-[6px] h-[6px] border-b-2 border-r-2 border-primary/40 opacity-0 group-hover:opacity-100 transition-opacity" />
+
       <div className="flex items-start justify-between">
         <h4
           className="cursor-pointer text-sm font-medium text-card-foreground hover:text-primary"
@@ -102,8 +106,8 @@ function SortableTaskCard({
           {task.priority}
         </span>
         {task.assignee_id && (
-          <span className="text-xs text-muted-foreground truncate max-w-[100px]">
-            {task.assignee_id}
+          <span className="text-[10px] text-muted-foreground truncate max-w-[100px] font-mono">
+            @{task.assignee_id.slice(0, 8)}
           </span>
         )}
       </div>
@@ -123,14 +127,19 @@ function DroppableColumn({
   const { setNodeRef } = useDroppable({ id: column.id })
 
   return (
-    <div className="flex w-72 flex-col bg-muted/20 pixel-border">
+    <div className="flex w-72 flex-col bg-muted/20 pixel-border relative group/col">
       <div className="flex items-center gap-2 p-3 border-b-2 border-border">
         <div className={cn("h-2.5 w-2.5", column.color)} />
         <h3 className="text-sm font-medium">{column.title}</h3>
-        <span className="ml-auto bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground font-mono border border-border">
+        <span className="ml-auto bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground font-mono border border-border">
           {tasks.length}
         </span>
       </div>
+      {/* Pixel divider under header */}
+      <div className="h-[2px]" style={{
+        background: "repeating-linear-gradient(90deg, var(--pixel-border) 0px, var(--pixel-border) 3px, transparent 3px, transparent 6px)",
+        opacity: 0.3
+      }} />
       <SortableContext
         items={tasks.map((t) => t.id)}
         strategy={verticalListSortingStrategy}
@@ -344,8 +353,11 @@ export function BoardPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-lg font-semibold">Board</h1>
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-semibold">Board</h1>
+          <span className="text-[10px] font-mono text-muted-foreground/40 tracking-wider uppercase">// task board</span>
+        </div>
         {projectId && (
           <CreateTaskDialog projectId={projectId} onCreated={handleTaskCreated} />
         )}

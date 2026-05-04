@@ -4,14 +4,14 @@ const PX = 5 // pixel size in px
 
 // Color presets for different agent roles
 const COLOR_PRESETS = {
-  blue:   { hair: "#6366f1", shirt: "#3b82f6", pants: "#475569" },
-  green:  { hair: "#10b981", shirt: "#22c55e", pants: "#475569" },
-  purple: { hair: "#a855f7", shirt: "#8b5cf6", pants: "#475569" },
-  amber:  { hair: "#f59e0b", shirt: "#eab308", pants: "#475569" },
-  pink:   { hair: "#ec4899", shirt: "#f472b6", pants: "#475569" },
-  cyan:   { hair: "#06b6d4", shirt: "#0ea5e9", pants: "#475569" },
-  red:    { hair: "#ef4444", shirt: "#f87171", pants: "#475569" },
-  teal:   { hair: "#14b8a6", shirt: "#2dd4bf", pants: "#475569" },
+  blue:   { hair: "#6366f1", shirt: "#818cf8", pants: "#78716c" },
+  green:  { hair: "#10b981", shirt: "#34d399", pants: "#78716c" },
+  purple: { hair: "#a855f7", shirt: "#c084fc", pants: "#78716c" },
+  amber:  { hair: "#d97706", shirt: "#f59e0b", pants: "#78716c" },
+  pink:   { hair: "#ec4899", shirt: "#f472b6", pants: "#78716c" },
+  cyan:   { hair: "#06b6d4", shirt: "#22d3ee", pants: "#78716c" },
+  red:    { hair: "#ef4444", shirt: "#f87171", pants: "#78716c" },
+  teal:   { hair: "#14b8a6", shirt: "#2dd4bf", pants: "#78716c" },
 } as const
 
 export type ColorPreset = keyof typeof COLOR_PRESETS
@@ -131,7 +131,7 @@ function DeskScene({
           left: 10,
           width: 110,
           height: 4,
-          backgroundColor: "#92400e",
+          backgroundColor: "#b45309",
         }}
       />
       {/* Desk legs */}
@@ -142,7 +142,7 @@ function DeskScene({
           left: 12,
           width: 4,
           height: 28,
-          backgroundColor: "#78350f",
+          backgroundColor: "#92400e",
         }}
       />
       <div
@@ -152,7 +152,7 @@ function DeskScene({
           right: 12,
           width: 4,
           height: 28,
-          backgroundColor: "#78350f",
+          backgroundColor: "#92400e",
         }}
       />
 
@@ -164,7 +164,7 @@ function DeskScene({
           left: 28,
           width: 44,
           height: 32,
-          backgroundColor: "#374151",
+          backgroundColor: "#57534e",
           borderRadius: 2,
         }}
       >
@@ -176,7 +176,7 @@ function DeskScene({
             left: 3,
             right: 3,
             bottom: 8,
-            backgroundColor: "#3b82f6",
+            backgroundColor: "#d97706",
             animation: "pixelMonitorGlow 2s ease-in-out infinite",
           }}
         />
@@ -189,7 +189,7 @@ function DeskScene({
             transform: "translateX(-50%)",
             width: 12,
             height: 6,
-            backgroundColor: "#374151",
+            backgroundColor: "#57534e",
           }}
         />
       </div>
@@ -284,7 +284,7 @@ function SofaScene({
           right: 10,
           width: 28,
           height: 3,
-          backgroundColor: "#92400e",
+          backgroundColor: "#b45309",
         }}
       />
       <div
@@ -294,7 +294,7 @@ function SofaScene({
           right: 22,
           width: 3,
           height: 24,
-          backgroundColor: "#78350f",
+          backgroundColor: "#92400e",
         }}
       />
       {/* Cup on table */}
@@ -335,7 +335,7 @@ function SofaScene({
 
 export function PixelCharacter({ colorPreset = "blue", status }: PixelCharacterProps) {
   const palette = COLOR_PRESETS[colorPreset]
-  const colors = { ...palette, skin: "#fbbf24" }
+  const colors = { ...palette, skin: "#fcd34d" }
 
   const [armUp, setArmUp] = useState(true)
 

@@ -32,13 +32,21 @@ function AgentCard({ agent }: { agent: Agent }) {
 
   return (
     <div
-      className="group relative bg-card p-4 transition-colors hover:border-primary pixel-border"
+      className="group relative bg-card p-4 transition-all hover:border-primary pixel-border hover:pixel-glow"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
+      {/* Pixel corner decorations */}
+      <div className="absolute top-0 left-0 w-[8px] h-[8px] border-t-[3px] border-l-[3px] border-primary/30 group-hover:border-primary/60 transition-colors" />
+      <div className="absolute top-0 right-0 w-[8px] h-[8px] border-t-[3px] border-r-[3px] border-primary/30 group-hover:border-primary/60 transition-colors" />
+      <div className="absolute bottom-0 left-0 w-[8px] h-[8px] border-b-[3px] border-l-[3px] border-primary/30 group-hover:border-primary/60 transition-colors" />
+      <div className="absolute bottom-0 right-0 w-[8px] h-[8px] border-b-[3px] border-r-[3px] border-primary/30 group-hover:border-primary/60 transition-colors" />
+
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 items-center justify-center bg-primary/15 text-primary border-2 border-primary/30">
+        <div className="flex h-10 w-10 items-center justify-center bg-primary/15 text-primary border-2 border-primary/30 relative">
           <Icon className="h-5 w-5" />
+          {/* Pixel dot accent on icon */}
+          <div className="absolute -top-1 -right-1 h-2 w-2 bg-primary/60" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -82,10 +90,13 @@ export function AgentsPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-lg font-semibold mb-1">Agents</h1>
+        <div className="flex items-center gap-3 mb-1">
+          <h1 className="text-lg font-semibold">Agents</h1>
+          <span className="text-[10px] font-mono text-muted-foreground/40 tracking-wider uppercase">// agent roster</span>
+        </div>
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <span>Total: {mockAgents.length}</span>
-          <span className="flex items-center gap-1.5">
+          <span className="font-mono text-xs">Total: {mockAgents.length}</span>
+          <span className="flex items-center gap-1.5 font-mono text-xs">
             <span className="h-2 w-2 bg-emerald-500 animate-pulse" />
             Running: {running}
           </span>

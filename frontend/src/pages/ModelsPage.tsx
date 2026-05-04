@@ -38,11 +38,15 @@ const mockProviders: Provider[] = [
 
 function ProviderCard({ provider }: { provider: Provider }) {
   return (
-    <div className="bg-card p-4 pixel-border">
+    <div className="bg-card p-4 pixel-border relative group hover:pixel-glow transition-all">
+      {/* Pixel corner accents */}
+      <div className="absolute top-0 left-0 w-[6px] h-[6px] border-t-2 border-l-2 border-primary/30 group-hover:border-primary/60 transition-colors" />
+      <div className="absolute bottom-0 right-0 w-[6px] h-[6px] border-b-2 border-r-2 border-primary/30 group-hover:border-primary/60 transition-colors" />
+
       <div className="flex items-start justify-between">
         <div>
           <h3 className="text-sm font-medium text-card-foreground">{provider.name}</h3>
-          <p className="text-xs text-muted-foreground mt-0.5 font-mono">{provider.type}</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5 font-mono tracking-wider uppercase">{provider.type}</p>
         </div>
         <div className="flex items-center gap-1.5">
           {provider.keyConfigured ? (
@@ -86,7 +90,10 @@ export function ModelsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-lg font-semibold">Model Providers</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-semibold">Model Providers</h1>
+          <span className="text-[10px] font-mono text-muted-foreground/40 tracking-wider uppercase">// ai models</span>
+        </div>
         <button className="inline-flex items-center gap-1.5 bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity pixel-border-sm">
           <Plus className="h-3.5 w-3.5" />
           Add Provider
