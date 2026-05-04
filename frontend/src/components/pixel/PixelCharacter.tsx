@@ -39,32 +39,32 @@ const SITTING_FRAME: number[][] = [
   [0, 0, 2, 2, 0, 2, 2, 0],
 ]
 
-// Arms up (reaching toward keyboard)
-const ARMS_UP: number[][] = [
+// Arms-only overlay frames — only the 2 arm skin pixels, rest is transparent
+// These are overlaid on top of the static body so only the arms animate
+const ARMS_UP_OVERLAY: number[][] = [
   [0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 2, 2, 2, 2, 0, 0],
-  [0, 3, 3, 3, 3, 3, 3, 0],
-  [3, 2, 3, 3, 3, 3, 2, 3],
-  [0, 0, 3, 3, 3, 3, 0, 0],
-  [0, 0, 4, 4, 0, 4, 4, 0],
-  [0, 0, 4, 4, 0, 4, 4, 0],
-  [0, 0, 2, 2, 0, 2, 2, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 2, 0, 0, 0, 0, 2, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0],
 ]
 
-// Arms down (resting)
-const ARMS_DOWN: number[][] = [
+const ARMS_DOWN_OVERLAY: number[][] = [
   [0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 2, 2, 2, 2, 0, 0],
-  [0, 3, 3, 3, 3, 3, 3, 0],
-  [3, 3, 3, 3, 3, 3, 3, 3],
-  [0, 3, 3, 3, 3, 3, 3, 0],
-  [2, 0, 4, 4, 0, 4, 4, 2],
-  [0, 0, 4, 4, 0, 4, 4, 0],
-  [0, 0, 2, 2, 0, 2, 2, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0],
+  [2, 0, 0, 0, 0, 0, 0, 2],
+  [0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0],
 ]
 
 function getPixelColor(
@@ -207,12 +207,14 @@ function DeskScene({
         }}
       />
 
-      {/* Character sitting at desk */}
+      {/* Character sitting at desk — body static, arms animated overlay */}
       <div className="absolute" style={{ bottom: 16, left: 18 }}>
+        <PixelGrid frame={SITTING_FRAME} colors={colors} />
         <PixelGrid
           frame={armFrame}
           colors={colors}
           className="animate-[pixelArmType_0.4s_ease-in-out_infinite]"
+          style={{ position: "absolute", top: 0, left: 0 }}
         />
       </div>
     </div>
@@ -359,7 +361,7 @@ export function PixelCharacter({ colorPreset = "blue", status }: PixelCharacterP
       {status === "idle" ? (
         <SofaScene colors={colors} />
       ) : (
-        <DeskScene colors={colors} armFrame={armUp ? ARMS_UP : ARMS_DOWN} />
+        <DeskScene colors={colors} armFrame={armUp ? ARMS_UP_OVERLAY : ARMS_DOWN_OVERLAY} />
       )}
     </div>
   )
