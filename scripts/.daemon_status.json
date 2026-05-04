@@ -1,0 +1,10 @@
+{
+  "running": false,
+  "pid": 42476,
+  "last_run": "2026-05-04T17:00:07.261049",
+  "total_dispatched": 3,
+  "errors": [
+    "手动停止"
+  ],
+  "interval_seconds": 120
+}

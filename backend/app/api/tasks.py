@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.websocket import manager
 from app.database import get_session
 from app.models.project import Task
 from app.schemas.task import (
@@ -37,6 +38,7 @@ async def create_task(
     session.add(task)
     await session.commit()
     await session.refresh(task)
+    await manager.broadcast("task_created", TaskResponse.model_validate(task).model_dump())
     return task
 
 
@@ -64,6 +66,7 @@ async def update_task(
         setattr(task, field, value)
     await session.commit()
     await session.refresh(task)
+    await manager.broadcast("task_updated", TaskResponse.model_validate(task).model_dump())
     return task
 
 
@@ -75,8 +78,10 @@ async def delete_task(
     task = await session.get(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    task_data = TaskResponse.model_validate(task).model_dump()
     await session.delete(task)
     await session.commit()
+    await manager.broadcast("task_deleted", task_data)
 
 
 @router.patch("/{task_id}/status", response_model=TaskResponse)
@@ -93,6 +98,7 @@ async def update_task_status(
         task.position = body.position
     await session.commit()
     await session.refresh(task)
+    await manager.broadcast("task_status_changed", TaskResponse.model_validate(task).model_dump())
     return task
 
 
@@ -111,4 +117,8 @@ async def reorder_tasks(
     await session.commit()
     for task in tasks:
         await session.refresh(task)
+    await manager.broadcast(
+        "tasks_reordered",
+        {"task_ids": [t.id for t in tasks]},
+    )
     return tasks
