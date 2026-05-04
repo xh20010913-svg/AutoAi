@@ -11,6 +11,7 @@ from app.schemas.task import (
     TaskStatusUpdate,
     TaskUpdate,
 )
+from app.websocket import manager
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -37,6 +38,7 @@ async def create_task(
     session.add(task)
     await session.commit()
     await session.refresh(task)
+    await manager.broadcast("task.created", TaskResponse.model_validate(task).model_dump(mode="json"))
     return task
 
 
@@ -64,6 +66,7 @@ async def update_task(
         setattr(task, field, value)
     await session.commit()
     await session.refresh(task)
+    await manager.broadcast("task.updated", TaskResponse.model_validate(task).model_dump(mode="json"))
     return task
 
 
@@ -75,8 +78,10 @@ async def delete_task(
     task = await session.get(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    task_data = TaskResponse.model_validate(task).model_dump(mode="json")
     await session.delete(task)
     await session.commit()
+    await manager.broadcast("task.deleted", task_data)
 
 
 @router.patch("/{task_id}/status", response_model=TaskResponse)
@@ -93,6 +98,7 @@ async def update_task_status(
         task.position = body.position
     await session.commit()
     await session.refresh(task)
+    await manager.broadcast("task.updated", TaskResponse.model_validate(task).model_dump(mode="json"))
     return task
 
 
@@ -111,4 +117,6 @@ async def reorder_tasks(
     await session.commit()
     for task in tasks:
         await session.refresh(task)
+    result = [TaskResponse.model_validate(t) for t in tasks]
+    await manager.broadcast("task.reordered", {"tasks": [r.model_dump(mode="json") for r in result]})
     return tasks
