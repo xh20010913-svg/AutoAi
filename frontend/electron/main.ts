@@ -6,7 +6,7 @@ let mainWindow: BrowserWindow | null = null
 let backendProcess: ChildProcess | null = null
 
 const IS_DEV = !app.isPackaged
-const BACKEND_PORT = 8000
+const BACKEND_PORT = 18765
 const FRONTEND_PORT = 5173
 
 function getBackendPath(): string {

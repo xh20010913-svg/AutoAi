@@ -1,11 +1,23 @@
 type MessageHandler = (data: any) => void
 
-const WS_URL = "ws://localhost:18765/api/ws"
-
 let ws: WebSocket | null = null
 let handlers: Set<MessageHandler> = new Set()
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 let intentionalClose = false
+let reconnectAttempts = 0
+const MAX_RECONNECT_DELAY = 30000
+
+function getBaseUrl(): string {
+  if (typeof window !== "undefined" && window.autoai) {
+    return window.autoai.getBackendUrlSync?.() ?? "http://localhost:18765"
+  }
+  return "http://localhost:18765"
+}
+
+function getWsUrl(): string {
+  const base = getBaseUrl()
+  return base.replace(/^http/, "ws") + "/api/v1/ws"
+}
 
 function getToken(): string | null {
   return localStorage.getItem("token")
@@ -31,11 +43,12 @@ function openConnection() {
   const token = getToken()
   if (!token) return
 
-  const url = `${WS_URL}?token=${encodeURIComponent(token)}`
+  const url = `${getWsUrl()}?token=${encodeURIComponent(token)}`
   ws = new WebSocket(url)
 
   ws.onopen = () => {
     console.log("[WS] Connected")
+    reconnectAttempts = 0
   }
 
   ws.onmessage = (event) => {
@@ -52,10 +65,12 @@ function openConnection() {
   ws.onclose = () => {
     ws = null
     if (!intentionalClose && handlers.size > 0) {
-      // Reconnect after 3 seconds
+      const delay = Math.min(1000 * 2 ** reconnectAttempts, MAX_RECONNECT_DELAY)
+      reconnectAttempts++
+      console.log(`[WS] Reconnecting in ${delay}ms (attempt ${reconnectAttempts})`)
       reconnectTimer = setTimeout(() => {
         openConnection()
-      }, 3000)
+      }, delay)
     }
   }
 

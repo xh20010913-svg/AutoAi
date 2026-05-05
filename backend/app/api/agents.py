@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.websocket import manager
 from app.database import get_session
 from app.models.project import Agent
 from app.schemas.agent import AgentCreate, AgentResponse, AgentUpdate
@@ -26,6 +27,7 @@ async def create_agent(
     session.add(agent)
     await session.commit()
     await session.refresh(agent)
+    await manager.broadcast("agent_status_change", AgentResponse.model_validate(agent).model_dump())
     return agent
 
 
@@ -53,6 +55,7 @@ async def update_agent(
         setattr(agent, field, value)
     await session.commit()
     await session.refresh(agent)
+    await manager.broadcast("agent_status_change", AgentResponse.model_validate(agent).model_dump())
     return agent
 
 
@@ -64,5 +67,7 @@ async def delete_agent(
     agent = await session.get(Agent, agent_id)
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
+    agent_data = AgentResponse.model_validate(agent).model_dump()
     await session.delete(agent)
     await session.commit()
+    await manager.broadcast("agent_status_change", {**agent_data, "status": "deleted"})

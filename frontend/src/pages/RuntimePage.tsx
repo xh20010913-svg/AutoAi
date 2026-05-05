@@ -1,6 +1,7 @@
 import { Play, Square, Search } from "lucide-react"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { cn } from "@/lib/utils"
+import { connectWebSocket } from "@/lib/ws"
 
 interface LogEntry {
   id: number
@@ -9,23 +10,12 @@ interface LogEntry {
   message: string
 }
 
-const mockLogs: LogEntry[] = [
-  { id: 1, time: "10:23:01", level: "info", message: "Runtime initialized successfully" },
-  { id: 2, time: "10:23:02", level: "info", message: "Loading agent configuration from workspace" },
-  { id: 3, time: "10:23:03", level: "info", message: "Connected to model provider: Anthropic" },
-  { id: 4, time: "10:23:04", level: "info", message: "Agent 'Backend Dev #1' started with model claude-sonnet-4-6" },
-  { id: 5, time: "10:23:05", level: "info", message: "Agent 'Frontend Dev' started with model claude-sonnet-4-6" },
-  { id: 6, time: "10:23:06", level: "warn", message: "Agent 'Tester #2' response time exceeding threshold (>5s)" },
-  { id: 7, time: "10:23:07", level: "info", message: "Task 'Implement auth API' assigned to Backend Dev #1" },
-  { id: 8, time: "10:23:08", level: "info", message: "Task 'Build dashboard UI' assigned to Frontend Dev" },
-  { id: 9, time: "10:23:09", level: "error", message: "Agent 'Backend Dev #3' connection timeout after 30s" },
-  { id: 10, time: "10:23:10", level: "info", message: "Retrying connection for Agent 'Backend Dev #3'..." },
-  { id: 11, time: "10:23:11", level: "info", message: "Agent 'Backend Dev #3' reconnected successfully" },
-  { id: 12, time: "10:23:12", level: "info", message: "Task 'Setup CI/CD pipeline' completed by Project Manager" },
-  { id: 13, time: "10:23:13", level: "warn", message: "Rate limit approaching for API key (85% of quota)" },
-  { id: 14, time: "10:23:14", level: "info", message: "Agent 'Tester #1' started with model claude-haiku-4-5" },
-  { id: 15, time: "10:23:15", level: "info", message: "All agents operational. 4 running, 4 idle" },
-]
+let nextLogId = 100
+
+function timeNow() {
+  const now = new Date()
+  return `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}:${now.getSeconds().toString().padStart(2, "0")}`
+}
 
 const levelColors: Record<string, string> = {
   info: "text-amber-300",
@@ -35,7 +25,9 @@ const levelColors: Record<string, string> = {
 
 export function RuntimePage() {
   const [running, setRunning] = useState(true)
-  const [logs, setLogs] = useState(mockLogs)
+  const [logs, setLogs] = useState<LogEntry[]>([
+    { id: 1, time: timeNow(), level: "info", message: "Runtime initialized successfully" },
+  ])
   const [searchQuery, setSearchQuery] = useState("")
   const logEndRef = useRef<HTMLDivElement>(null)
 
@@ -43,6 +35,24 @@ export function RuntimePage() {
     logEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [logs])
 
+  // WebSocket: real-time runtime updates
+  useEffect(() => {
+    const unsubscribe = connectWebSocket((data) => {
+      if (data.event === "runtime_update") {
+        const payload = data.data ?? {}
+        const level: LogEntry["level"] = ["info", "warn", "error"].includes(payload.level)
+          ? payload.level
+          : "info"
+        setLogs((prev) => [
+          ...prev,
+          { id: ++nextLogId, time: timeNow(), level, message: payload.message ?? "Unknown event" },
+        ])
+      }
+    })
+    return unsubscribe
+  }, [])
+
+  // Simulated heartbeat logs (keep as demo when no real backend activity)
   useEffect(() => {
     if (!running) return
     const interval = setInterval(() => {
@@ -56,18 +66,16 @@ export function RuntimePage() {
         "Agent 'Project Manager' dispatched subtask",
       ]
       const levels: Array<"info" | "warn" | "error"> = ["info", "info", "info", "info", "warn", "error"]
-      const now = new Date()
-      const time = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}:${now.getSeconds().toString().padStart(2, "0")}`
       setLogs((prev) => [
         ...prev,
         {
-          id: prev.length + 1,
-          time,
+          id: ++nextLogId,
+          time: timeNow(),
           level: levels[Math.floor(Math.random() * levels.length)],
           message: messages[Math.floor(Math.random() * messages.length)],
         },
       ])
-    }, 2000)
+    }, 5000)
     return () => clearInterval(interval)
   }, [running])
 
@@ -106,7 +114,6 @@ export function RuntimePage() {
       </div>
       <div className="flex-1 overflow-hidden flex flex-col pixel-border">
         <div className="flex-1 overflow-auto p-3 font-mono text-xs leading-relaxed relative" style={{ backgroundColor: "oklch(0.12 0.015 40)" }}>
-          {/* Scanline overlay for CRT feel */}
           <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{
             background: "repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(255,255,255,0.08) 1px, rgba(255,255,255,0.08) 2px)"
           }} />

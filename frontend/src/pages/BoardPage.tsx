@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, type CSSProperties } from "react"
 import {
   DndContext,
   DragOverlay,
@@ -13,15 +13,18 @@ import {
 } from "@dnd-kit/core"
 import {
   SortableContext,
+  useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import { cn } from "@/lib/utils"
 import { taskApi, type Task, type TaskStatus } from "@/lib/api"
 import { showToast } from "@/lib/toast"
 import { connectWebSocket } from "@/lib/ws"
 import { CreateTaskDialog } from "@/components/CreateTaskDialog"
 import { TaskDetailPanel } from "@/components/TaskDetailPanel"
-import { SortableTaskCard, TaskCardOverlay } from "@/components/TaskCard"
+import { TaskCardOverlay } from "@/components/TaskCard"
+import { GripVertical } from "lucide-react"
 
 interface ColumnDef {
   id: TaskStatus
@@ -193,7 +196,7 @@ export function BoardPage() {
   // WebSocket: refresh board on task change notifications
   useEffect(() => {
     const unsubscribe = connectWebSocket((data) => {
-      if (data.type === "task_updated" || data.type === "task_created" || data.type === "task_deleted") {
+      if (data.event === "task_updated" || data.event === "task_created" || data.event === "task_deleted" || data.event === "task_status_changed") {
         loadTasks()
       }
     })
@@ -284,7 +287,7 @@ export function BoardPage() {
     } catch (err) {
       console.error("Failed to update task position:", err)
       showToast("Failed to update task", "error")
-      await loadTasks(projectId)
+      await loadTasks()
     }
   }
 
@@ -329,9 +332,7 @@ export function BoardPage() {
           <h1 className="text-lg font-semibold">Board</h1>
           <span className="text-[10px] font-mono text-muted-foreground/40 tracking-wider uppercase">// task board</span>
         </div>
-        {projectId && (
-          <CreateTaskDialog projectId={projectId} onCreated={handleTaskCreated} />
-        )}
+        <CreateTaskDialog onCreated={handleTaskCreated} />
       </div>
       <div className="flex-1 overflow-x-auto">
         <DndContext

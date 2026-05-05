@@ -100,6 +100,32 @@ export const authApi = {
   },
 }
 
+// ── Agent types ─────────────────────────────────────────────────
+
+export interface Agent {
+  id: string
+  name: string
+  role: string
+  model: string
+  provider_id: string | null
+  status: string
+  system_prompt: string
+  created_at: string
+  updated_at: string
+}
+
+export const agentApi = {
+  list: async (): Promise<Agent[]> => {
+    const res = await apiClient.get<Agent[]>("/agents")
+    return res.data
+  },
+
+  get: async (agentId: string): Promise<Agent> => {
+    const res = await apiClient.get<Agent>(`/agents/${agentId}`)
+    return res.data
+  },
+}
+
 // ── Task API ────────────────────────────────────────────────────
 
 export const taskApi = {
