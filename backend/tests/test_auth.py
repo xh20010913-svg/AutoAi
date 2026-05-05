@@ -118,3 +118,30 @@ async def test_me_user_not_found(client: AsyncClient):
                         settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
     resp = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_me_expired_token(client: AsyncClient):
+    """Token that has already expired — covers JWTError branch."""
+    token = jwt.encode({"sub": "user-id", "exp": 1}, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+    resp = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_me_tampered_token(client: AsyncClient):
+    """Token with corrupted signature."""
+    headers = await get_auth_headers(client)
+    token = headers["Authorization"].split(" ")[1]
+    tampered = token[:-5] + "AAAAA"
+    resp = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {tampered}"})
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_me_wrong_scheme(client: AsyncClient):
+    """Using Basic auth instead of Bearer."""
+    headers = await get_auth_headers(client)
+    token = headers["Authorization"].split(" ")[1]
+    resp = await client.get("/api/v1/auth/me", headers={"Authorization": f"Basic {token}"})
+    assert resp.status_code == 401

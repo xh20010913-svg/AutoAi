@@ -96,3 +96,16 @@ async def test_delete_agent(client: AsyncClient):
 async def test_delete_agent_not_found(client: AsyncClient):
     resp = await client.delete("/api/v1/agents/99999")
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_agent_missing_name(client: AsyncClient):
+    agent = await _create_agent(client)
+    resp = await client.put(f"/api/v1/agents/{agent['id']}", json={})
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_agent_empty_name(client: AsyncClient):
+    resp = await client.post("/api/v1/agents", json={"name": ""})
+    assert resp.status_code == 201

@@ -96,3 +96,16 @@ async def test_delete_project(client: AsyncClient):
 async def test_delete_project_not_found(client: AsyncClient):
     resp = await client.delete("/api/v1/projects/99999")
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_project_missing_name(client: AsyncClient):
+    proj = await _create_project(client)
+    resp = await client.put(f"/api/v1/projects/{proj['id']}", json={})
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_project_empty_name(client: AsyncClient):
+    resp = await client.post("/api/v1/projects", json={"name": ""})
+    assert resp.status_code == 201

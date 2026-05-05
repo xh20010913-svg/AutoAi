@@ -193,3 +193,49 @@ async def test_reorder_tasks(client: AsyncClient):
 async def test_reorder_tasks_not_found(client: AsyncClient):
     resp = await client.post("/api/v1/tasks/reorder", json={"task_ids": ["nonexistent-id"]})
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_reorder_single_task(client: AsyncClient):
+    t1 = await _create_task(client, title="Solo")
+    resp = await client.post("/api/v1/tasks/reorder", json={"task_ids": [t1["id"]]})
+    assert resp.status_code == 200
+    assert len(resp.json()) == 1
+
+
+@pytest.mark.asyncio
+async def test_reorder_empty_list(client: AsyncClient):
+    resp = await client.post("/api/v1/tasks/reorder", json={"task_ids": []})
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+@pytest.mark.asyncio
+async def test_list_tasks_ordered_by_position(client: AsyncClient):
+    await _create_task(client, title="Third", position=2)
+    await _create_task(client, title="First", position=0)
+    await _create_task(client, title="Second", position=1)
+    resp = await client.get("/api/v1/tasks")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert [t["title"] for t in data] == ["First", "Second", "Third"]
+
+
+@pytest.mark.asyncio
+async def test_drag_status_transition(client: AsyncClient):
+    task = await _create_task(client)
+    for status in ["in_progress", "in_review", "done"]:
+        resp = await client.patch(f"/api/v1/tasks/{task['id']}/status", json={"status": status})
+        assert resp.status_code == 200
+        assert resp.json()["status"] == status
+
+
+@pytest.mark.asyncio
+async def test_delete_task_verify_removed_from_list(client: AsyncClient):
+    t1 = await _create_task(client, title="Keep")
+    t2 = await _create_task(client, title="Delete")
+    await client.delete(f"/api/v1/tasks/{t2['id']}")
+    resp = await client.get("/api/v1/tasks")
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["id"] == t1["id"]
