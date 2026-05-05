@@ -43,6 +43,7 @@ class Task(Base):
     assignee: Mapped[str] = mapped_column(String, default="")
     project_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("projects.id"), nullable=True)
     position: Mapped[int] = mapped_column(Integer, default=0)
+    blocked_reason: Mapped[str] = mapped_column(String, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

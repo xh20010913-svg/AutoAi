@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from "react"
-import { X, Trash2, Plus, Link, Unlink } from "lucide-react"
+import { X, Trash2, Link, Unlink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { api, type Task, type TaskStatus, type TaskPriority } from "@/lib/api"
+import { cn } from "@/lib/utils"
 
 interface TaskDetailPanelProps {
   task: Task
@@ -169,6 +170,9 @@ export function TaskDetailPanel({ task, allTasks, onClose, onUpdated, onDeleted 
               ))}
             </SelectContent>
           </Select>
+          {task.blocked_reason && (
+            <p className="text-xs text-destructive/80 mt-0.5">{task.blocked_reason}</p>
+          )}
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -305,6 +309,3 @@ export function TaskDetailPanel({ task, allTasks, onClose, onUpdated, onDeleted 
   )
 }
 
-function cn(...args: (string | undefined | false | null)[]) {
-  return args.filter(Boolean).join(" ")
-}

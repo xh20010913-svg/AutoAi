@@ -18,10 +18,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { api, type Task, type TaskPriority } from "@/lib/api"
-import { Plus } from "lucide-react"
+import { Plus, X } from "lucide-react"
 
 interface CreateTaskDialogProps {
   onCreated: (task: Task) => void
+  allTasks: Task[]
 }
 
 const PRIORITIES: { value: TaskPriority; label: string }[] = [
@@ -31,13 +32,29 @@ const PRIORITIES: { value: TaskPriority; label: string }[] = [
   { value: "none", label: "None" },
 ]
 
-export function CreateTaskDialog({ onCreated }: CreateTaskDialogProps) {
+export function CreateTaskDialog({ onCreated, allTasks }: CreateTaskDialogProps) {
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [priority, setPriority] = useState<TaskPriority>("medium")
   const [assignee, setAssignee] = useState("")
+  const [depIds, setDepIds] = useState<string[]>([])
+  const [depPicker, setDepPicker] = useState("")
   const [creating, setCreating] = useState(false)
+
+  const availableForDep = allTasks.filter(
+    (t) => !depIds.includes(t.id)
+  )
+
+  function addDep() {
+    if (!depPicker.trim()) return
+    setDepIds((prev) => [...prev, depPicker])
+    setDepPicker("")
+  }
+
+  function removeDep(id: string) {
+    setDepIds((prev) => prev.filter((d) => d !== id))
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -49,12 +66,14 @@ export function CreateTaskDialog({ onCreated }: CreateTaskDialogProps) {
         description: description.trim() || undefined,
         priority,
         assignee: assignee.trim() || undefined,
+        depends_on_ids: depIds,
       })
       onCreated(task)
       setTitle("")
       setDescription("")
       setPriority("medium")
       setAssignee("")
+      setDepIds([])
       setOpen(false)
     } catch (err) {
       console.error("Failed to create task:", err)
@@ -123,6 +142,54 @@ export function CreateTaskDialog({ onCreated }: CreateTaskDialogProps) {
               onChange={(e) => setAssignee(e.target.value)}
               placeholder="Agent ID (optional)"
             />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label>Dependencies</Label>
+            {depIds.length > 0 && (
+              <ul className="space-y-1 mb-1">
+                {depIds.map((id) => {
+                  const t = allTasks.find((a) => a.id === id)
+                  return (
+                    <li key={id} className="flex items-center justify-between text-xs bg-muted/30 px-2 py-1 border border-border">
+                      <span className="truncate">{t?.title ?? id}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeDep(id)}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+            {availableForDep.length > 0 && (
+              <div className="flex gap-1.5">
+                <select
+                  value={depPicker}
+                  onChange={(e) => setDepPicker(e.target.value)}
+                  className="flex-1 text-xs bg-background border border-border px-2 py-1.5 text-foreground"
+                >
+                  <option value="">Add dependency...</option>
+                  {availableForDep.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.title}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={addDep}
+                  disabled={!depPicker.trim()}
+                >
+                  <Plus className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

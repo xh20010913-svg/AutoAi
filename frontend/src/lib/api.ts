@@ -12,6 +12,7 @@ export interface Task {
   assignee: string
   project_id: string | null
   position: number
+  blocked_reason: string
   created_at: string
   updated_at: string
   depends_on_ids: string[]

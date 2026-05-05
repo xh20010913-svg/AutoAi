@@ -11,6 +11,7 @@ class TaskCreate(BaseModel):
     priority: str = "medium"
     assignee: str = ""
     position: int = 0
+    blocked_reason: str = ""
     depends_on_ids: list[str] = []
 
 
@@ -21,6 +22,7 @@ class TaskUpdate(BaseModel):
     priority: Optional[str] = None
     assignee: Optional[str] = None
     position: Optional[int] = None
+    blocked_reason: Optional[str] = None
 
 
 class TaskStatusUpdate(BaseModel):
@@ -41,6 +43,7 @@ class TaskResponse(BaseModel):
     assignee: str
     project_id: Optional[str]
     position: int
+    blocked_reason: str = ""
     created_at: datetime
     updated_at: datetime
     depends_on_ids: list[str] = []

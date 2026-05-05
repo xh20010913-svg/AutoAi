@@ -1,7 +1,7 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -35,6 +35,7 @@ def task_to_response(task: Task) -> TaskResponse:
         assignee=task.assignee,
         project_id=task.project_id,
         position=task.position,
+        blocked_reason=task.blocked_reason or "",
         created_at=task.created_at,
         updated_at=task.updated_at,
         depends_on_ids=[d.id for d in task.depends_on],
@@ -77,9 +78,14 @@ async def _check_and_update_blocked(session: AsyncSession, task: Task) -> None:
     dep_task = await _load_task(session, task.id)
     if not dep_task:
         return
-    all_done = all(d.status in DONE_STATUSES for d in dep_task.depends_on)
-    if all_done and dep_task.depends_on:
+    if not dep_task.depends_on:
         task.status = "todo"
+        task.blocked_reason = ""
+        return
+    all_done = all(d.status in DONE_STATUSES for d in dep_task.depends_on)
+    if all_done:
+        task.status = "todo"
+        task.blocked_reason = ""
 
 
 async def _check_dependents_on_completion(session: AsyncSession, task: Task) -> None:
@@ -102,6 +108,7 @@ async def _enforce_blocking_on_dependency_add(
 ) -> None:
     if dep.status not in DONE_STATUSES and task.status not in DONE_STATUSES:
         task.status = "blocked"
+        task.blocked_reason = f"Waiting for: {dep.title}"
 
 
 # — Literal-path routes first (before /{task_id}) —
@@ -140,7 +147,8 @@ async def create_task(
                 status_code=400,
                 detail=f"Adding dependency {dep_id} would create a cycle",
             )
-        task.depends_on.append(dep)
+        stmt = insert(task_dependencies).values(task_id=task.id, depends_on_id=dep_id)
+        await session.execute(stmt)
         await _enforce_blocking_on_dependency_add(session, task, dep)
 
     await session.commit()
@@ -243,6 +251,7 @@ async def update_task_status(
         incomplete = [d for d in task.depends_on if d.status not in DONE_STATUSES]
         if incomplete:
             task.status = "blocked"
+            task.blocked_reason = f"Waiting for: {', '.join(d.title for d in incomplete)}"
             if body.position is not None:
                 task.position = body.position
             await session.commit()

@@ -179,17 +179,28 @@ function TaskCardOverlay({ task }: { task: Task }) {
 
 function DependencyArrows({
   edges,
-  tasks,
 }: {
   edges: GraphEdge[]
-  tasks: Task[]
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const svgRef = useRef<SVGSVGElement>(null)
   const [, forceUpdate] = useState(0)
 
   useEffect(() => {
-    const handle = setInterval(() => forceUpdate((n) => n + 1), 500)
-    return () => clearInterval(handle)
+    const el = containerRef.current
+    if (!el) return
+    const scrollParent = el.closest("[class*='overflow']") as HTMLElement | null
+    const ro = new ResizeObserver(() => forceUpdate((n) => n + 1))
+    ro.observe(el)
+    if (scrollParent) {
+      const onScroll = () => forceUpdate((n) => n + 1)
+      scrollParent.addEventListener("scroll", onScroll, { passive: true })
+      return () => {
+        ro.disconnect()
+        scrollParent.removeEventListener("scroll", onScroll)
+      }
+    }
+    return () => ro.disconnect()
   }, [])
 
   const arrows: { x1: number; y1: number; x2: number; y2: number; source: string; target: string }[] = []
@@ -197,7 +208,7 @@ function DependencyArrows({
   if (!containerRef.current) {
     return (
       <div ref={containerRef} className="absolute inset-0 pointer-events-none overflow-hidden">
-        <svg className="absolute inset-0 w-full h-full" style={{ zIndex: 5 }} />
+        <svg ref={svgRef} className="absolute inset-0 w-full h-full" style={{ zIndex: 5 }} />
       </div>
     )
   }
@@ -224,7 +235,7 @@ function DependencyArrows({
 
   return (
     <div ref={containerRef} className="absolute inset-0 pointer-events-none overflow-hidden">
-      <svg className="absolute inset-0 w-full h-full" style={{ zIndex: 5 }}>
+      <svg ref={svgRef} className="absolute inset-0 w-full h-full" style={{ zIndex: 5 }}>
         <defs>
           <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
             <polygon points="0 0, 8 3, 0 6" fill="#a1a1aa" />
@@ -404,7 +415,7 @@ export function BoardPage() {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-lg font-semibold">Board</h1>
-        <CreateTaskDialog onCreated={handleTaskCreated} />
+        <CreateTaskDialog onCreated={handleTaskCreated} allTasks={tasks} />
       </div>
       <div className="flex-1 overflow-x-auto relative">
         <DndContext
@@ -423,7 +434,7 @@ export function BoardPage() {
                 onTaskClick={setSelectedTask}
               />
             ))}
-            <DependencyArrows edges={edges} tasks={tasks} />
+            <DependencyArrows edges={edges} />
           </div>
           <DragOverlay>
             {activeTask ? <TaskCardOverlay task={activeTask} /> : null}
